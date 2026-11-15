@@ -1,4 +1,4 @@
-Joins the TMC identity addons into one signed-in player: who they are (dot-auth), what we know about them (dot-user) and what they look like (dot-user-avatar). Each of those addons works alone; this one connects them.
+Joins the Gamespice identity addons into one signed-in player: who they are (dot-auth), what we know about them (dot-user) and what they look like (dot-user-avatar). Each of those addons works alone; this one connects them.
 
 Requires [dot-core](https://github.com/gamespice-platform/core) and [dot-server](https://github.com/gamespice-platform/server). It finds dot-auth, dot-user and dot-user-avatar at runtime and works with any subset, including none.
 
