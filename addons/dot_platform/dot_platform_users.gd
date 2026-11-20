@@ -1,11 +1,11 @@
 class_name DotPlatformUsers
 extends DotUserManager
 
-## dot-user's profile manager, telling the platform's profile store which keys the site
+## GameSpice User's profile manager, telling the platform's profile store which keys the site
 ## issued.
 ##
 ## [b]Why a subclass and not a setting.[/b] Whether a key belongs to the site is a fact
-## about the IDENTITY (dot-auth's scoped introspection puts the site's key in the
+## about the IDENTITY (GameSpice Auth's scoped introspection puts the site's key in the
 ## `scoped_key` claim), and a store is only ever handed the key. [method key_for] is the
 ## one place both are in hand, and the manager calls it before it reads the store, so the
 ## store knows where the key lives before its first request. See [DotPlatformProfileStore].
@@ -37,7 +37,7 @@ func key_for(identity: Object) -> DotResult:
 
 ## Whether the key [method key_for] resolved came from the site rather than this server.
 ##
-## dot-user takes the claim's key whenever the claim is there and well formed (and refuses
+## GameSpice User takes the claim's key whenever the claim is there and well formed (and refuses
 ## the identity when it is not), so the claim being present on a key that resolved is the
 ## whole test.
 static func _site_issued(identity: Object) -> bool:

@@ -4,7 +4,7 @@ Why dot-platform is shaped the way it is. The platform design it implements is [
 
 ## Why this exists
 
-Every other addon in the family is deliberately unaware of the others. That is the rule that makes them adoptable one at a time, and it is worth keeping. The cost is that **the handoffs between them existed only in prose**: each addon passed its own self-test in isolation and nothing ran two of them together. The first time a real client was run against a real server in one process, it found two bugs in dot-server that made joining impossible in every configuration ([history](history.md#what-the-first-run-together-found)).
+Every other addon in the family is deliberately unaware of the others. That is the rule that makes them adoptable one at a time, and it is worth keeping. The cost is that **the handoffs between them existed only in prose**: each addon passed its own self-test in isolation and nothing ran two of them together. The first time a real client was run against a real server in one process, it found two bugs in GameSpice Server that made joining impossible in every configuration ([history](history.md#what-the-first-run-together-found)).
 
 So this repository is two things: a small addon that does the joining, and the examples that are the only place the family is exercised as a whole.
 
@@ -16,25 +16,25 @@ identity.uid          "backbone:acc-1"     global; a server must never see this
    -> avatar filed under the SAME scoped key
 ```
 
-`DotPlatformHub` is the only place this happens. Keying the avatar on `identity.uid` would pass every test in every other repository and quietly undo dot-user's scoping, which is the single security property the platform design rests on.
+`DotPlatformHub` is the only place this happens. Keying the avatar on `identity.uid` would pass every test in every other repository and quietly undo GameSpice User's scoping, which is the single security property the platform design rests on.
 
 `DotPlatformPlayer.account_uid()` is named to be conspicuous. Anything that stores, logs or transmits its result is undoing the scoping; it exists because admission needs it exactly once.
 
 ## Everything optional stays optional
 
-The managers are found through `DotRegistry`, never imported, and every absence has a defined answer: no dot-user means no profile and no scoped key; no dot-user-avatar means nobody has an avatar and nothing asks; neither means a player with a name and nothing else. `seam_selftest`'s "absent addons" section covers all three.
+The managers are found through `DotRegistry`, never imported, and every absence has a defined answer: no GameSpice User means no profile and no scoped key; no GameSpice User Avatar means nobody has an avatar and nothing asks; neither means a player with a name and nothing else. `seam_selftest`'s "absent addons" section covers all three.
 
 This is not politeness. A platform that required all three to start would be unusable on day one of a project, which is when people decide whether to adopt something.
 
-Optional here means at run time. `dot_platform_player.gd` names types from dot-auth, dot-user and dot-user-avatar, and `DotPlatformIdentity` also names `DotCloudClient`, `DotUserManager`, `DotAvatarManager` and `DotBackboneClient`, so at parse time those addons are required.
+Optional here means at run time. `dot_platform_player.gd` names types from GameSpice Auth, GameSpice User and GameSpice User Avatar, and `DotPlatformIdentity` also names `DotCloudClient`, `DotUserManager`, `DotAvatarManager` and `DotBackboneClient`, so at parse time those addons are required.
 
 ## Admission gates the spawn
 
-dot-server's signon runs `CONNECTING -> AUTHENTICATING -> PROFILE -> DOWNLOADING -> LOADING -> SPAWNED`. `PROFILE` (dot-server API level 7) is the stage between authentication and content in which a module may hold a player and refuse them before anything has been sent that a refusal would have to take back: no content, no game, no spawn, no join line. `DotPlatformModule` holds every authenticated player there (`hold_profile(session, "platform")`) while `DotPlatformHub.admit` runs, then puts the platform state and the profile name on the session and releases them, so the game seats somebody who is already who they are. `require_avatar` and `require_profile` refuse in the stage with `refuse_profile` and the hub's sentence ("Make an avatar before joining."): the player reads it, the server never spawns them, and nobody saw them arrive.
+GameSpice Server's signon runs `CONNECTING -> AUTHENTICATING -> PROFILE -> DOWNLOADING -> LOADING -> SPAWNED`. `PROFILE` (GameSpice Server API level 7) is the stage between authentication and content in which a module may hold a player and refuse them before anything has been sent that a refusal would have to take back: no content, no game, no spawn, no join line. `DotPlatformModule` holds every authenticated player there (`hold_profile(session, "platform")`) while `DotPlatformHub.admit` runs, then puts the platform state and the profile name on the session and releases them, so the game seats somebody who is already who they are. `require_avatar` and `require_profile` refuse in the stage with `refuse_profile` and the hub's sentence ("Make an avatar before joining."): the player reads it, the server never spawns them, and nobody saw them arrive.
 
-- **The hold is taken synchronously, inside dot-server's own `client_state_changed` for the stage.** The server looks at the holds as soon as its handlers return; a hold taken after an await finds the player already downloading.
-- **A slow store does not keep an optional player out.** Unless `require_avatar` or `require_profile` is on, the module lets the player in after `admission_timeout_sec` (plus half a second) and admission finishes behind them, as it did before the stage. A required admission keeps holding, because letting the player in would be the very spawn the stage exists to prevent; dot-server's `profile_timeout_sec` (300 s) is the ceiling on that, for a player making an avatar as much as for a hung store. It is its own timeout for the reason the other stages have theirs: a player stuck choosing a hairstyle has a different problem from one stuck authenticating, and an operator has to be able to tell which.
-- **The old path stays, and it is the fallback, not dead code.** A session the module first hears of past the stage is admitted after the spawn, the way every session was before: a dot-server older than the stage (the module reaches `hold_profile` through `Object.call`, so this addon still parses against one), a session a host adopted, a guest who signed in after spawning. A refusal there is `DotServer.kick`. `gates_spawn()` says which kind of server the module is in.
+- **The hold is taken synchronously, inside GameSpice Server's own `client_state_changed` for the stage.** The server looks at the holds as soon as its handlers return; a hold taken after an await finds the player already downloading.
+- **A slow store does not keep an optional player out.** Unless `require_avatar` or `require_profile` is on, the module lets the player in after `admission_timeout_sec` (plus half a second) and admission finishes behind them, as it did before the stage. A required admission keeps holding, because letting the player in would be the very spawn the stage exists to prevent; GameSpice Server's `profile_timeout_sec` (300 s) is the ceiling on that, for a player making an avatar as much as for a hung store. It is its own timeout for the reason the other stages have theirs: a player stuck choosing a hairstyle has a different problem from one stuck authenticating, and an operator has to be able to tell which.
+- **The old path stays, and it is the fallback, not dead code.** A session the module first hears of past the stage is admitted after the spawn, the way every session was before: a GameSpice Server older than the stage (the module reaches `hold_profile` through `Object.call`, so this addon still parses against one), a session a host adopted, a guest who signed in after spawning. A refusal there is `DotServer.kick`. `gates_spawn()` says which kind of server the module is in.
 - **An unload lets everybody it holds in**, because a hold whose holder has gone is released by nothing and the player would wait out the stage's timeout.
 - **The client is not told.** It waits in its own `AUTHENTICATING` phase ("Signing in…"), which is why a client built before the stage joins unchanged. A game that wants to show its avatar editor during the stage sends its own optional envelope kind.
 
@@ -48,11 +48,11 @@ Admission usually finishes before the spawn now, but not always (the late path a
 - `player_renamed` (plus `name`), after `session.display_name` is set;
 - `player_avatar_changed`, from the hub's `avatar_changed` when `DotPlatformConfig.broadcast_avatar_changes` is on.
 
-dot-platform sends nothing to a client itself, which keeps it out of the netcode's business. `sandbox_server` checks admitted and renamed, and each fails with its line removed.
+GameSpice Platform sends nothing to a client itself, which keeps it out of the netcode's business. `sandbox_server` checks admitted and renamed, and each fails with its line removed.
 
 ## A game's identity layer is `DotPlatformIdentity`
 
-Every game built the same chain in front of this addon: dot-cloud (registered, or not built at all), the backbone client when the operator asked for one, dot-user, dot-user-avatar over the game's schema, and a hub, then `avatar_for(key)`. Two games' copies differed in one line once the class names were taken out. It lives here, and a game hands it two things: `avatar_schema` and `stock_avatar_fn`. game-fatal-contact and game-airdrift subclass it; the games on dot-game return one from `_make_identity()`.
+Every game built the same chain in front of this addon: GameSpice Cloud (registered, or not built at all), the backbone client when the operator asked for one, GameSpice User, GameSpice User Avatar over the game's schema, and a hub, then `avatar_for(key)`. Two games' copies differed in one line once the class names were taken out. It lives here, and a game hands it two things: `avatar_schema` and `stock_avatar_fn`. game-fatal-contact and game-airdrift subclass it; the games on GameSpice Game return one from `_make_identity()`.
 
 - **The stock look is the platform's answer too.** It hands `stock_avatar_fn` to the avatar manager as `default_avatar_fn`, so a first-time player with nothing stored is resolved to the game's stock look for their scoped key rather than the schema's one default.
 - **`avatar_for` is never null while there is a schema.** Platform first, then the game's stock function, then `default_avatar()`. A game with no schema builds no avatar manager and gets null, which is the honest answer for a game with no avatars.
@@ -62,17 +62,17 @@ Every game built the same chain in front of this addon: dot-cloud (registered, o
 
 ## A site-issued player's profile lives on the site
 
-With `use_backbone_profiles` (on) and a `dot_backbone_client` holding an integration token, `DotPlatformIdentity` builds dot-user's `DotUserStoreBackbone` on that credential, found exactly as the avatar store is, and hands it to the manager it builds (`DotPlatformUsers`). The manager's store is then a `DotPlatformProfileStore` that routes per key:
+With `use_backbone_profiles` (on) and a `dot_backbone_client` holding an integration token, `DotPlatformIdentity` builds GameSpice User's `DotUserStoreBackbone` on that credential, found exactly as the avatar store is, and hands it to the manager it builds (`DotPlatformUsers`). The manager's store is then a `DotPlatformProfileStore` that routes per key:
 
-- **Only a key the site issued goes to the site.** dot-auth's scoped introspection puts the site's key in the `scoped_key` claim, and `DotPlatformUsers.key_for` (the one place both the identity and the key are in hand, called before the read) marks it. A guest, a local account, or any key dot-user derived from this server's secret is a key the site never minted: the site would answer every read with 404 (a first-time player, every visit) and every save on leave with an ERROR. Those stay on this server's disk, as every profile did before.
-- **A credential the site refuses (401/403) falls back for the life of the process**, said once at WARN, rather than degrading every member to a session-only profile. A credential enrolled before `PROFILE_READ` / `PROFILE_WRITE` were granted is the case this is for. Any other failure passes through, and dot-user degrades that one player without overwriting the real profile.
+- **Only a key the site issued goes to the site.** GameSpice Auth's scoped introspection puts the site's key in the `scoped_key` claim, and `DotPlatformUsers.key_for` (the one place both the identity and the key are in hand, called before the read) marks it. A guest, a local account, or any key GameSpice User derived from this server's secret is a key the site never minted: the site would answer every read with 404 (a first-time player, every visit) and every save on leave with an ERROR. Those stay on this server's disk, as every profile did before.
+- **A credential the site refuses (401/403) falls back for the life of the process**, said once at WARN, rather than degrading every member to a session-only profile. A credential enrolled before `PROFILE_READ` / `PROFILE_WRITE` were granted is the case this is for. Any other failure passes through, and GameSpice User degrades that one player without overwriting the real profile.
 - **The router calls its inner stores' `_fetch` / `_store` / `_remove`**, not their public methods: its own public methods already checked the key, validated and stamped the profile, and a second pass logged a failed save twice.
 - **Where it follows a player is the credential's scope, not this addon's choice.** An app-bound credential scopes to the app, so every server holding it shares profiles; a server's own enrolled credential scopes to that server, so the profile survives restarts and reconnects there but another server sees a different key.
-- An operator who configured dot-user's `backbone` backend themselves is left alone; nothing is routed.
+- An operator who configured GameSpice User's `backbone` backend themselves is left alone; nothing is routed.
 
 ## A module whose hub was freed admits nobody
 
-`DotPlatformModule._on_client_state_changed` returns when `platform` is no longer a valid instance. The hub belongs to whatever built it (a game's `DotPlatformIdentity`), and a game change frees it; a module left loaded past that would crash the server on the next admission. dot-game unloads the module it loaded, and this guard keeps any other host that forgets from crashing.
+`DotPlatformModule._on_client_state_changed` returns when `platform` is no longer a valid instance. The hub belongs to whatever built it (a game's `DotPlatformIdentity`), and a game change frees it; a module left loaded past that would crash the server on the next admission. GameSpice Game unloads the module it loaded, and this guard keeps any other host that forgets from crashing.
 
 ## Two MultiplayerAPI instances in one process
 
@@ -82,7 +82,7 @@ With `use_backbone_profiles` (on) and a `dot_backbone_client` holding an integra
 
 ## Deliberately not here
 
-- **A game.** The sandbox example spawns a player and stops. What they do next is a game, and dot-player-controller and dot-net are what it would be built on.
-- **The avatar editor UI.** dot-user-avatar's `choices_for` is what it would use.
-- **Matchmaking, discovery, a server browser.** dot-matchmaking and dot-browser.
-- **The `PROFILE` signon stage itself.** It is dot-server's; this addon is one holder of it.
+- **A game.** The sandbox example spawns a player and stops. What they do next is a game, and GameSpice Player Controller and GameSpice Net are what it would be built on.
+- **The avatar editor UI.** GameSpice User Avatar's `choices_for` is what it would use.
+- **Matchmaking, discovery, a server browser.** GameSpice Matchmaking and GameSpice Browser.
+- **The `PROFILE` signon stage itself.** It is GameSpice Server's; this addon is one holder of it.

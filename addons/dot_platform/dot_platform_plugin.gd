@@ -1,7 +1,7 @@
 @tool
 extends EditorPlugin
 
-## Editor entry point for dot-platform. Registers inspector types only.
+## Editor entry point for GameSpice Platform. Registers inspector types only.
 ##
 ## No autoload, for the family's reason: a process may run a server and a client at
 ## once — which is exactly what this project's own listen-server example does — and a

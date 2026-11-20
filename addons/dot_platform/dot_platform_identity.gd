@@ -5,12 +5,12 @@ extends Node
 ## flow, built in the order they depend on each other.
 ##
 ## [codeblock]
-## dot-cloud    downloads and mounts content. Registers `dot_cloud_client`.
-## dot-auth     reports this server to its site listing, when asked to.
-## dot-user     the profile that follows a player between servers (on the site, for a
+## GameSpice Cloud    downloads and mounts content. Registers `dot_cloud_client`.
+## GameSpice Auth     reports this server to its site listing, when asked to.
+## GameSpice User     the profile that follows a player between servers (on the site, for a
 ##              player the site issued a key for, when the host holds its credential).
 ## dot-avatar   what they look like, over the GAME's schema.
-## dot-platform joins the three into ONE admission, as its own DotModule.
+## GameSpice Platform joins the three into ONE admission, as its own DotModule.
 ## [/codeblock]
 ##
 ## [b]This is the identity layer every game had a copy of.[/b] game-fatal-contact's was 262 lines
@@ -18,17 +18,17 @@ extends Node
 ## which avatar schema, and which stock avatar a player without one gets. Those are the two
 ## things a game hands this; everything else is the chain.
 ##
-## [b]Authentication is not here.[/b] Proving who somebody is happens in dot-server's
+## [b]Authentication is not here.[/b] Proving who somebody is happens in GameSpice Server's
 ## handshake, against whatever `dot_auth_server` the host registered; a deployment turns it
 ## on for every game it runs, and a game does not get a say. What this layer does is
 ## everything AFTER that: turning the proven identity into a scoped profile, a name and an
 ## avatar.
 ##
-## [b]dot-cloud is registered or it is not built at all.[/b] Four call sites in two other
+## [b]GameSpice Cloud is registered or it is not built at all.[/b] Four call sites in two other
 ## addons look it up under `dot_cloud_client`, and every one of them treats an absent cloud
 ## as "this deployment ships its content in its build" — a legitimate configuration, and
 ## therefore indistinguishable from `DotCloudClient` once failing to publish itself, which
-## left dot-server, dot-user-avatar and dot-map all finding null without one error between
+## left GameSpice Server, GameSpice User Avatar and GameSpice Map all finding null without one error between
 ## them. A registered client that failed to start is a third thing: present, found, and
 ## unable to do anything.
 ##
@@ -43,7 +43,7 @@ extends Node
 ## await server.modules.load_module("res://addons/dot_platform/dot_platform_module.gd")
 ## [/codeblock]
 ##
-## A dot-game module returns one from `_make_identity()` and needs none of the last line:
+## A GameSpice Game module returns one from `_make_identity()` and needs none of the last line:
 ## [code]DotGameModule[/code] loads the platform module itself.
 
 const CHANNEL := "platform.identity"
@@ -61,12 +61,12 @@ const CHANNEL := "platform.identity"
 ## Report the player count, the map and the roster to the site listing.
 ##
 ## Off by default. A server that phones home without its operator asking is a server
-## nobody would run, and dot-auth's own defaults agree.
+## nobody would run, and GameSpice Auth's own defaults agree.
 @export var report_to_backbone: bool = false
 
 ## Where the backbone is. Empty uses [DotAuthConfig]'s own default.
 ##
-## [b]A default endpoint is a security property, not a convenience.[/b] dot-auth once
+## [b]A default endpoint is a security property, not a convenience.[/b] GameSpice Auth once
 ## shipped a domain that was not the site and was registered to nobody, so every deployment
 ## that did not override it aimed the opening request of an authentication flow at a name
 ## any stranger could buy.
@@ -87,7 +87,7 @@ const CHANNEL := "platform.identity"
 ## [b]The game's own, never a second one.[/b] A game's renderer conforms every document to
 ## its schema before drawing it, so a manager validating against a different schema would
 ## accept avatars the renderer then silently rewrote. Null builds no avatar manager, and
-## nobody has an avatar — which dot-platform already answers.
+## nobody has an avatar — which GameSpice Platform already answers.
 var avatar_schema: DotAvatarSchema = null
 
 ## `func(player_key: StringName) -> DotAvatar`: the avatar a player with none of their own
@@ -108,9 +108,9 @@ var avatar_translate_fn: Callable = Callable()
 ## Read avatars from the site when the server holds an integration credential.
 ##
 ## [b]On, and found rather than configured.[/b] A host that has registered a
-## `dot_backbone_client` (dot-server-deploy does, from data/listing.json) has the one
-## credential the site's avatar route accepts for this server, and the keys dot-auth's
-## scoped introspection hands dot-user are the ones that route resolves. Without it the
+## `dot_backbone_client` (GameSpice Server Deploy does, from data/listing.json) has the one
+## credential the site's avatar route accepts for this server, and the keys GameSpice Auth's
+## scoped introspection hands GameSpice User are the ones that route resolves. Without it the
 ## manager's store is a local file the site never sees, which is how every avatar a
 ## member chose on the site stayed there. Read only: a server draws players and the site
 ## is where they dress, and AVATAR_WRITE is a scope an operator should have to ask for.
@@ -122,7 +122,7 @@ var use_backbone_avatars: bool = true
 ## [b]On, found the same way as the avatar store, and only for those players.[/b] With
 ## it, a member's name, avatar choice and preferences follow them to every server whose
 ## credential shares a scope (an app-bound credential: the app; a server's own enrolled
-## one: that server). Everybody else — guests, local accounts, any key dot-user derived
+## one: that server). Everybody else — guests, local accounts, any key GameSpice User derived
 ## from this server's own secret — keeps a profile on this server's disk as before: the
 ## site has never heard of their key, and sending it would make every read a first-time
 ## player and every save on leave an ERROR. See [DotPlatformProfileStore]. Read and
@@ -200,7 +200,7 @@ func _build_cloud() -> DotResult:
 
 
 func _build_backbone() -> DotResult:
-	# The host's client, when it has one (dot-server-deploy builds it from data/listing.json), is the
+	# The host's client, when it has one (GameSpice Server Deploy builds it from data/listing.json), is the
 	# server's credential. A second client here is built from a bare DotAuthConfig with no token, so it
 	# fails with "No integration token" at ERROR on every boot of an enrolled server and reports nothing.
 	var host_client: Object = DotRegistry.get_service(&"dot_backbone_client")
@@ -309,7 +309,7 @@ func _backbone_profile_store() -> DotUserStoreBackbone:
 
 ## `[integration base URL, token]` from the host's `dot_backbone_client`, or empty.
 ##
-## Duck-typed through the registry: the client is dot-auth's, and a host without one is
+## Duck-typed through the registry: the client is GameSpice Auth's, and a host without one is
 ## a LAN server whose avatars and profiles are its own.
 func _integration_credential() -> PackedStringArray:
 	var client: Object = DotRegistry.get_service(&"dot_backbone_client")
@@ -349,7 +349,7 @@ func _build_platform() -> DotResult:
 
 ## The module a [DotServer] loads to put this in front of joining players.
 ##
-## dot-platform ships its own [DotModule], which is the right shape: everything it
+## GameSpice Platform ships its own [DotModule], which is the right shape: everything it
 ## registers is removed again when it unloads, and a game that wanted a different admission
 ## flow replaces one module rather than editing another.
 func platform_module() -> DotPlatformModule:
@@ -362,7 +362,7 @@ func platform_module() -> DotPlatformModule:
 
 func _notification(what: int) -> void:
 	# [b]The module is a Node outside the tree until a server loads it.[/b] One nothing
-	# loaded — a dot-game module loads dot-platform's own by path, and a test asks only to
+	# loaded — a GameSpice Game module loads GameSpice Platform's own by path, and a test asks only to
 	# compare it — has no parent to free it, and outlives this layer as a leaked instance
 	# holding the hub it was bound to. One a server DID load is the server's to free.
 	if what == NOTIFICATION_PREDELETE and is_instance_valid(_module) \

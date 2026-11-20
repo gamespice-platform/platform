@@ -21,7 +21,7 @@ extends Node
 ## server half and the client half each get their own, rooted at different nodes, and
 ## [code]multiplayer[/code] inside each resolves to the right one.
 ##
-## That is worth more than this test: it is the same mechanism dot-core needs for
+## That is worth more than this test: it is the same mechanism GameSpice Core needs for
 ## listening on UDP and WebSocket at once, which is the open question in
 ## [code]PLATFORM.md[/code]. If this works, that approach works.
 
@@ -49,7 +49,7 @@ var _failures := PackedStringArray()
 
 ## An avatar store that answers a few frames late, as every real one does (a disk, the
 ## site). [b]A store that answers at once makes the suite blind to the hold:[/b] admission
-## then finishes inside dot-server's own PROFILE announcement, before anything could have
+## then finishes inside GameSpice Server's own PROFILE announcement, before anything could have
 ## moved the player on, so a module that held nothing would pass every check here.
 class SlowAvatarStore extends DotAvatarStoreMemory:
 	func _fetch(user_key: String) -> DotResult:

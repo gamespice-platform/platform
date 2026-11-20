@@ -4,8 +4,8 @@ extends RefCounted
 ## Everything the platform knows about one connected person, in one place.
 ##
 ## [b]Three addons answer three different questions and none of them knows about the
-## others.[/b] dot-auth says who this is; dot-user says what we know about them;
-## dot-user-avatar says what they look like. That independence is deliberate — each
+## others.[/b] GameSpice Auth says who this is; GameSpice User says what we know about them;
+## GameSpice User Avatar says what they look like. That independence is deliberate — each
 ## works without the other two — and the cost is that nothing holds the whole picture.
 ## This does.
 ##
@@ -19,18 +19,18 @@ extends RefCounted
 ##
 ## Keying the avatar on [code]identity.uid[/code] instead would work perfectly in
 ## testing and quietly hand every server operator a global identifier — which is the
-## exact thing dot-user's scoping exists to prevent. [DotPlatform] is the only place
+## exact thing GameSpice User's scoping exists to prevent. [DotPlatform] is the only place
 ## that translation happens.
 
 ## How far admission got.
 enum Stage {
 	## Nothing has happened yet.
 	NEW,
-	## dot-auth vouched for them.
+	## GameSpice Auth vouched for them.
 	AUTHENTICATED,
-	## dot-user resolved or created a profile.
+	## GameSpice User resolved or created a profile.
 	PROFILED,
-	## dot-user-avatar resolved an avatar.
+	## GameSpice User Avatar resolved an avatar.
 	DRESSED,
 	## Everything resolved and the player may enter the world.
 	READY,
@@ -38,17 +38,17 @@ enum Stage {
 	REFUSED,
 }
 
-## Whatever dot-auth produced. Duck-typed: uid, display_name, is_guest.
+## Whatever GameSpice Auth produced. Duck-typed: uid, display_name, is_guest.
 ##
-## Deliberately [Object] rather than [code]DotAuthIdentity[/code]: dot-platform runs
-## on a server with no dot-auth installed too, where dot-server supplies its own
+## Deliberately [Object] rather than [code]DotAuthIdentity[/code]: GameSpice Platform runs
+## on a server with no GameSpice Auth installed too, where GameSpice Server supplies its own
 ## guest identity with the same three fields.
 var identity: Object = null
 
-## The profile, when dot-user is installed.
+## The profile, when GameSpice User is installed.
 var profile: DotUserProfile = null
 
-## The avatar, when dot-user-avatar is installed.
+## The avatar, when GameSpice User Avatar is installed.
 var avatar: DotAvatar = null
 
 ## What this player is allowed to wear.
@@ -84,7 +84,7 @@ static func for_identity(p_identity: Object) -> DotPlatformPlayer:
 	return player
 
 
-## The scoped id everything below dot-auth keys on.
+## The scoped id everything below GameSpice Auth keys on.
 ##
 ## Empty until the profile resolves. [b]Never the account id[/b] — see the class
 ## documentation for why that distinction is the whole point.
@@ -92,7 +92,7 @@ func key() -> String:
 	return profile.user_key if profile != null else ""
 
 
-## The account id dot-auth issued. Global, and it must not leave this object.
+## The account id GameSpice Auth issued. Global, and it must not leave this object.
 ##
 ## Named to be conspicuous at the call site: anything that stores, logs or transmits
 ## this is undoing the scoping. It exists because admission needs it exactly once, to

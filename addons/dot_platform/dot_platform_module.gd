@@ -1,9 +1,9 @@
 class_name DotPlatformModule
 extends DotModule
 
-## Binds a [DotPlatformHub] to a running dot-server, as a module rather than a fork.
+## Binds a [DotPlatformHub] to a running GameSpice Server, as a module rather than a fork.
 ##
-## [b]Why a module.[/b] dot-server's extension points exist so a game never has to
+## [b]Why a module.[/b] GameSpice Server's extension points exist so a game never has to
 ## edit it, and a platform is exactly the kind of thing that would otherwise be
 ## tempted to. Everything here goes through [code]DotModule[/code]'s own helpers, so
 ## unloading it removes every command, cvar and hook it added — the reason those
@@ -16,8 +16,8 @@ extends DotModule
 ## server.modules.load_module(module)
 ## [/codeblock]
 ##
-## [b]Admission gates the spawn.[/b] dot-server's signon has a PROFILE stage between
-## authentication and content (dot-server API level 7). The module holds every
+## [b]Admission gates the spawn.[/b] GameSpice Server's signon has a PROFILE stage between
+## authentication and content (GameSpice Server API level 7). The module holds every
 ## authenticated player there while [method DotPlatformHub.admit] runs, so the player
 ## appears already wearing their profile name and avatar, and a refusal
 ## ([code]require_avatar[/code], [code]require_profile[/code]) is a refusal of somebody
@@ -35,9 +35,9 @@ extends DotModule
 ## The platform this module wires in. Required.
 var platform: DotPlatformHub = null
 
-## dot-server session userid -> scoped platform key.
+## GameSpice Server session userid -> scoped platform key.
 ##
-## Kept because dot-server keys everything on its own session ids and the platform
+## Kept because GameSpice Server keys everything on its own session ids and the platform
 ## keys everything on scoped ids, and the translation has to live somewhere. Here,
 ## once, rather than at every call site.
 var _keys_by_userid: Dictionary = {}
@@ -48,7 +48,7 @@ var _admitting: Dictionary = {}
 ## The name this module holds the PROFILE stage under. See [method DotServer.hold_profile].
 const HOLD := "platform"
 
-## dot-server session userid -> session, for every player this module is holding in the
+## GameSpice Server session userid -> session, for every player this module is holding in the
 ## PROFILE stage. Kept so an unload can let them go: a hold whose holder has gone is
 ## released by nothing, and the player would sit there until the stage's timeout.
 var _holding: Dictionary = {}
@@ -139,7 +139,7 @@ func _module_unload() -> void:
 			server.client_disconnected.disconnect(_on_client_disconnected)
 
 	# Let everybody we were holding in. Their admission is abandoned with the module, so
-	# they enter with what dot-server knows, the way they would on a server without one.
+	# they enter with what GameSpice Server knows, the way they would on a server without one.
 	for userid in _holding.keys():
 		_release(_holding[userid])
 
@@ -151,7 +151,7 @@ func _module_unload() -> void:
 # --- The join --------------------------------------------------------------
 
 func _on_client_state_changed(session: DotClientSession) -> void:
-	# An identity means dot-server has finished authenticating. Every later state
+	# An identity means GameSpice Server has finished authenticating. Every later state
 	# change also carries one, which is why the in-flight guard exists rather than
 	# matching on a specific state: a session announced past the PROFILE stage (an older
 	# server, an adopted session, an identity that changed) is still admitted, late.
@@ -173,7 +173,7 @@ func _on_client_state_changed(session: DotClientSession) -> void:
 
 	_admitting[session.userid] = true
 
-	# Claimed now, synchronously, from inside dot-server's own announcement: the server
+	# Claimed now, synchronously, from inside GameSpice Server's own announcement: the server
 	# looks at the holds as soon as its handlers return, and one taken after an await
 	# would find the player already downloading.
 	var gated := _hold(session)
@@ -181,11 +181,11 @@ func _on_client_state_changed(session: DotClientSession) -> void:
 	_admit(session, gated)
 
 
-## Holds [param session] in dot-server's PROFILE stage. False when it is not in the stage
+## Holds [param session] in GameSpice Server's PROFILE stage. False when it is not in the stage
 ## or the server has no such stage, which means admission runs after the spawn.
 ##
 ## [b]By name, through [method Object.call].[/b] `server.hold_profile(...)` would not
-## parse against a dot-server older than the stage, and this addon would then fail to load
+## parse against a GameSpice Server older than the stage, and this addon would then fail to load
 ## on every server that has not been updated, rather than admitting late as it used to.
 func _hold(session: DotClientSession) -> bool:
 	if server == null or not server.has_method("hold_profile"):
@@ -198,7 +198,7 @@ func _hold(session: DotClientSession) -> bool:
 	# is waiting for is required. Past the admission budget, an optional admission lets the
 	# player in and finishes behind them, as it did before the stage existed. A required
 	# one keeps holding: letting them in would be the very spawn the stage exists to
-	# prevent, and dot-server's own profile timeout is the ceiling.
+	# prevent, and GameSpice Server's own profile timeout is the ceiling.
 	if not _required():
 		var tree := Engine.get_main_loop() as SceneTree
 		if tree != null:
@@ -302,13 +302,13 @@ func _admit(session: DotClientSession, gated: bool) -> void:
 			"userid": session.userid, "peer_id": session.peer_id,
 		})
 
-	# Last: the name and the platform state are on the session before dot-server moves the
+	# Last: the name and the platform state are on the session before GameSpice Server moves the
 	# player on, so the game seats them as who they are rather than redrawing a guest.
 	_release(session)
 
 
 ## Whether this module's admission runs before the spawn on the server it is loaded in,
-## that is, whether that dot-server has the PROFILE stage. A game that redraws on
+## that is, whether that GameSpice Server has the PROFILE stage. A game that redraws on
 ## `player_admitted` still has to: a late admission (see the class notes) fires it after.
 func gates_spawn() -> bool:
 	return server != null and server.has_method("hold_profile")
@@ -329,7 +329,7 @@ func _on_client_disconnected(session: DotClientSession, _reason: String) -> void
 
 # --- Lookups ---------------------------------------------------------------
 
-## The platform state for a dot-server session, or null.
+## The platform state for a GameSpice Server session, or null.
 func player_for(session: DotClientSession) -> DotPlatformPlayer:
 	if session == null:
 		return null

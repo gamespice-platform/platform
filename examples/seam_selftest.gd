@@ -1,6 +1,6 @@
 extends "res://examples/seam_selftest_base.gd"
 
-## Runs dot-auth, dot-user, dot-user-avatar and dot-platform in one process with nothing
+## Runs GameSpice Auth, GameSpice User, GameSpice User Avatar and GameSpice Platform in one process with nothing
 ## mocked, and checks the handoffs: a game server must never see an account id, only its
 ## scoped derivation, and the avatar is filed under that. Run: `res://examples/seam_selftest.tscn`.
 
@@ -293,7 +293,7 @@ func _identity_variants() -> void:
 	DotRegistry.clear()
 
 	# With an integration credential avatars come from the SITE, not a local file. A plain
-	# object with a config stands in for dot-auth's client; the registry lookup is duck-typed.
+	# object with a config stands in for GameSpice Auth's client; the registry lookup is duck-typed.
 	var credential := DotAuthConfig.new()
 	credential.backbone_url = "https://site.example"
 	credential.integration_token = "tmci_test"
@@ -386,7 +386,7 @@ func _test_site_profiles() -> void:
 		"and the site store's HTTP client is in the tree"
 	)
 
-	# A member the site issued a key for: what dot-auth's scoped introspection builds.
+	# A member the site issued a key for: what GameSpice Auth's scoped introspection builds.
 	var site_key := "SeamSiteKey0000000000a"
 	var member: DotAuthIdentity = DotAuthIdentity.from_scoped_user(
 		{"key": site_key, "name": "Grace"}
@@ -658,7 +658,7 @@ class MiniSite extends Node:
 		return out
 
 
-## Stands in for dot-auth's DotBackboneClient in the registry: what the identity layer
+## Stands in for GameSpice Auth's DotBackboneClient in the registry: what the identity layer
 ## reads is its config, and only that.
 class FakeBackboneHolder extends RefCounted:
 	var config: DotAuthConfig = null

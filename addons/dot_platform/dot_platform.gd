@@ -12,8 +12,8 @@ extends Node
 ## var player: DotPlatformPlayer = admitted.value
 ## [/codeblock]
 ##
-## [b]This is the seam nothing else was testing.[/b] dot-auth, dot-user and
-## dot-user-avatar each pass their own self-tests in isolation, and each is
+## [b]This is the seam nothing else was testing.[/b] GameSpice Auth, GameSpice User and
+## GameSpice User Avatar each pass their own self-tests in isolation, and each is
 ## deliberately unaware of the others — that independence is what makes them
 ## adoptable one at a time. The cost is that the handoffs between them existed only in
 ## documentation. This is the handoff, as code, with a self-test that runs all three
@@ -22,8 +22,8 @@ extends Node
 ## [b]Everything optional stays optional.[/b] The managers are found through
 ## [DotRegistry], never imported, and each one being absent has a defined answer:
 ##
-## - no dot-user: every player is a guest with a session identity and no profile;
-## - no dot-user-avatar: nobody has an avatar and nothing asks for one;
+## - no GameSpice User: every player is a guest with a session identity and no profile;
+## - no GameSpice User Avatar: nobody has an avatar and nothing asks for one;
 ## - neither: [method admit] still returns a usable player, and a game that only
 ##   wanted authentication has paid nothing for the rest.
 ##
@@ -138,12 +138,12 @@ func is_ready() -> bool:
 	return _ready_ok
 
 
-## dot-user's manager, or null.
+## GameSpice User's manager, or null.
 func users() -> Object:
 	return DotRegistry.get_service(USER_SERVICE)
 
 
-## dot-user-avatar's manager, or null.
+## GameSpice User Avatar's manager, or null.
 func avatars() -> Object:
 	return DotRegistry.get_service(AVATAR_SERVICE)
 
@@ -200,7 +200,7 @@ func _resolve_profile(player: DotPlatformPlayer) -> bool:
 	var manager := users()
 
 	if manager == null:
-		# No dot-user installed. The player has no profile and everything downstream
+		# No GameSpice User installed. The player has no profile and everything downstream
 		# has to cope, which is why key() is allowed to be empty.
 		player.stage = DotPlatformPlayer.Stage.PROFILED
 		return true
@@ -222,7 +222,7 @@ func _resolve_profile(player: DotPlatformPlayer) -> bool:
 
 	player.profile = resolved.value
 
-	# dot-user marks a stand-in profile by leaving created_at at zero, and refuses to
+	# GameSpice User marks a stand-in profile by leaving created_at at zero, and refuses to
 	# persist one. Carrying that fact forward matters: a game that wrote to this
 	# profile would be writing to something that is deliberately never saved, and the
 	# change would vanish without an error.
@@ -247,7 +247,7 @@ func _resolve_avatar(player: DotPlatformPlayer) -> bool:
 	if key == "":
 		# No profile, so no scoped key to file an avatar under. Refusing to invent one
 		# is the point: the only other option is keying on the account id, which is
-		# exactly the correlation dot-user's scoping exists to prevent.
+		# exactly the correlation GameSpice User's scoping exists to prevent.
 		DotLog.debug(
 			CHANNEL,
 			"no profile key, so no avatar; install dot-user to give players one"
@@ -395,7 +395,7 @@ func count() -> int:
 
 ## Accepts a new avatar from a player and republishes it.
 ##
-## [b]Goes through dot-user-avatar's own validation[/b] rather than trusting what
+## [b]Goes through GameSpice User Avatar's own validation[/b] rather than trusting what
 ## arrived, and passes the entitlements resolved at admission — not any the client
 ## sent, which would make the whole entitlement system a suggestion.
 func set_avatar(key: String, avatar: DotAvatar) -> DotResult:
@@ -439,7 +439,7 @@ func set_avatar(key: String, avatar: DotAvatar) -> DotResult:
 	return DotResult.success(avatar.digest())
 
 
-## Changes a display name, through dot-user so every name rule applies.
+## Changes a display name, through GameSpice User so every name rule applies.
 func set_display_name(key: String, requested: String) -> DotResult:
 	var target := player(key)
 
@@ -518,12 +518,12 @@ func describe_lines() -> PackedStringArray:
 
 # --- A note on the name ----------------------------------------------------
 #
-# This class is DotPlatformHub, not DotPlatform, because dot-core already has a
+# This class is DotPlatformHub, not DotPlatform, because GameSpice Core already has a
 # DotPlatform — the capability helper behind DotPlatform.has_threads() and
 # DotPlatform.is_web(). class_name is global in Godot and these addons install side
-# by side, so the collision was not a style problem: it made dot-core's own scripts
+# by side, so the collision was not a style problem: it made GameSpice Core's own scripts
 # fail to parse the moment this addon was present, and the errors pointed at
-# dot-auth, which does not mention either class.
+# GameSpice Auth, which does not mention either class.
 #
 # Worth checking a proposed class_name against every addon in the family before
 # taking it, not just against the one being written.

@@ -10,7 +10,7 @@ extends DotConfig
 
 ## Refuse a player whose profile could not be resolved.
 ##
-## Off is the default and is the right one for a sandbox: dot-user already degrades to
+## Off is the default and is the right one for a sandbox: GameSpice User already degrades to
 ## a session-only profile when its store cannot answer, so the player keeps playing
 ## and loses nothing that was saved. On is for a server where the profile carries
 ## something the game cannot run without.
@@ -33,9 +33,9 @@ extends DotConfig
 
 @export_group("Presentation")
 
-## Push the platform's display name onto the dot-server session.
+## Push the platform's display name onto the GameSpice Server session.
 ##
-## dot-server takes the name from the identity; the profile's is the one the player
+## GameSpice Server takes the name from the identity; the profile's is the one the player
 ## actually chose, so for a guest who renamed themselves the two differ. On means the
 ## scoreboard shows what the player picked.
 @export var apply_profile_name: bool = true

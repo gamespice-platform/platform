@@ -5,11 +5,11 @@ extends DotUserStore
 ## on this server.
 ##
 ## [b]Why two stores, routed per key.[/b] A player who signed in through the site arrives
-## with the key the site minted for this server's credential (dot-auth's scoped
+## with the key the site minted for this server's credential (GameSpice Auth's scoped
 ## introspection puts it in the `scoped_key` claim), and the site's profile route resolves
 ## exactly those keys, so their profile follows them to every server sharing that scope.
 ## Everybody else — a guest with guest profiles on, a local account, any identity whose key
-## dot-user derived from this server's own secret — has a key the site never minted and
+## GameSpice User derived from this server's own secret — has a key the site never minted and
 ## answers [code]404[/code] for: every read would look like a first-time player and every
 ## save on leave would fail and log an ERROR. So the site store sees only keys the site
 ## issued ([method note_issued], called by [DotPlatformUsers.key_for]) and the local store

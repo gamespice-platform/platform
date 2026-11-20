@@ -1,12 +1,12 @@
 [![Platform - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/17-gs-platform)
 
-Joins the GameSpice identity addons into one signed-in player: who they are (dot-auth), what we know about them (dot-user) and what they look like (dot-user-avatar). Each of those addons works alone; this one connects them.
+Joins the GameSpice identity addons into one signed-in player: who they are (GameSpice Auth), what we know about them (GameSpice User) and what they look like (GameSpice User Avatar). Each of those addons works alone; this one connects them.
 
-Requires [dot-core](https://github.com/gamespice-platform/core) and [dot-server](https://github.com/gamespice-platform/server). It finds dot-auth, dot-user and dot-user-avatar at runtime and works with any subset, including none.
+Requires [GameSpice Core](https://github.com/gamespice-platform/core) and [GameSpice Server](https://github.com/gamespice-platform/server). It finds GameSpice Auth, GameSpice User and GameSpice User Avatar at runtime and works with any subset, including none.
 
 ## Install
 
-1. Copy `addons/dot_platform/` and `addons/dot_core/` into your project, plus whichever of dot-auth, dot-user and dot-user-avatar you want.
+1. Copy `addons/dot_platform/` and `addons/dot_core/` into your project, plus whichever of GameSpice Auth, GameSpice User and GameSpice User Avatar you want.
 2. Enable them in *Project > Project Settings > Plugins*.
 
 ## Use
@@ -23,7 +23,7 @@ player.display_name()   # from the profile, falling back to the identity
 player.avatar           # resolved and entitlement-checked
 ```
 
-On a dot-server, load the module and it does this for every connection:
+On a GameSpice Server, load the module and it does this for every connection:
 
 ```gdscript
 server.modules.load_module("res://addons/dot_platform/dot_platform_module.gd")
@@ -48,7 +48,7 @@ Keying data on the global account id would hand every server operator a global i
 | Installed | Result |
 | --- | --- |
 | all three | profile, avatar, entitlements, onboarding flag |
-| dot-user only | a profile and a scoped key, no avatar |
+| GameSpice User only | a profile and a scoped key, no avatar |
 | none | a player with the identity's name and no scoped key |
 | a broken store | the player still joins, nothing is saved |
 

@@ -200,7 +200,7 @@ func _test_identity_to_profile() -> void:
 	if not _check(ready.ok, "dot-user sets up", str(ready.error)):
 		return
 
-	# The seam: dot-user duck-types the identity on uid, display_name and is_guest,
+	# The seam: GameSpice User duck-types the identity on uid, display_name and is_guest,
 	# and DotAuthIdentity satisfies all three without either addon knowing about the
 	# other. This is what that claim being true looks like.
 	var resolved: DotResult = await users.resolve(identity)
@@ -249,8 +249,8 @@ func _test_profile_to_avatar() -> void:
 	var resolved: DotResult = await users.resolve(authenticated.value)
 	var profile: DotUserProfile = resolved.value
 
-	# The seam: the avatar is filed under the profile's scoped key. dot-user-avatar
-	# accepts it because DotAvatarKey admits the same shape dot-user produces,
+	# The seam: the avatar is filed under the profile's scoped key. GameSpice User Avatar
+	# accepts it because DotAvatarKey admits the same shape GameSpice User produces,
 	# without the two addons depending on each other.
 	_check(
 		DotAvatarKey.is_usable(profile.user_key),
@@ -496,7 +496,7 @@ func _test_absent_addons() -> void:
 	await get_tree().process_frame
 	DotRegistry.clear()
 
-	# dot-user without dot-user-avatar: a profile, no avatar, and nothing asks.
+	# GameSpice User without GameSpice User Avatar: a profile, no avatar, and nothing asks.
 	var users := _make_users("server:%s" % SERVER_A)
 	await users.setup()
 	var partial := _make_platform()
