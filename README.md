@@ -1,4 +1,4 @@
-[![Platform - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/211-dot-platform)
+[![Platform - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/17-gs-platform)
 
 Joins the GameSpice identity addons into one signed-in player: who they are (dot-auth), what we know about them (dot-user) and what they look like (dot-user-avatar). Each of those addons works alone; this one connects them.
 
