@@ -1,6 +1,6 @@
 [![dot-platform - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/211-dot-platform)
 
-Joins the Gamespice identity addons into one signed-in player: who they are (dot-auth), what we know about them (dot-user) and what they look like (dot-user-avatar). Each of those addons works alone; this one connects them.
+Joins the GameSpice identity addons into one signed-in player: who they are (dot-auth), what we know about them (dot-user) and what they look like (dot-user-avatar). Each of those addons works alone; this one connects them.
 
 Requires [dot-core](https://github.com/gamespice-platform/core) and [dot-server](https://github.com/gamespice-platform/server). It finds dot-auth, dot-user and dot-user-avatar at runtime and works with any subset, including none.
 
@@ -65,6 +65,6 @@ More: [docs/design.md](docs/design.md), [docs/history.md](docs/history.md).
 
 ## Status and licence
 
-Part of the [Gamespice](https://gamespice.net) platform: a family of Godot addons. Written with Claude Code and maintained by `gamemann`. Every addon has headless tests, but little of this has been played by real users yet, so expect rough edges and please [open an issue](https://github.com/gamespice-platform/platform/issues) when you hit one.
+Part of the [**GameSpice**](https://gamespice.net) platform: a family of Godot addons. Written with Claude Code and maintained by `gamemann`. Every addon has headless tests, but little of this has been played by real users yet, so expect rough edges and please [open an issue](https://github.com/gamespice-platform/platform/issues) when you hit one.
 
-MIT licence, see [LICENSE](LICENSE). The only closed part of the [Gamespice](https://gamespice.net) platform is the web back end; you can use your own instead of Gamespice's.
+MIT licence, see [LICENSE](LICENSE). The only closed part of the [**GameSpice**](https://gamespice.net) platform is the web back end; you can use your own instead of GameSpice's.
