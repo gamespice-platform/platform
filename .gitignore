@@ -23,3 +23,9 @@ export_presets.cfg
 Thumbs.db
 /addons/gs_player_controller
 /addons/gs_player
+
+# Linked addons (separate repositories, symlinked in for local development).
+/addons/dot_bot
+/addons/dot_bot_record
+/addons/dot_sim
+/addons/godot-sqlite
