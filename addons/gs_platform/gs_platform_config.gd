@@ -3,7 +3,7 @@ class_name GSPlatformConfig
 extends GSConfig
 
 ## How admission behaves. Layered like every [GSConfig]: exported defaults, then a
-## JSON file, then [code]DOT_PLATFORM_*[/code] environment variables, then
+## JSON file, then [code]GS_PLATFORM_*[/code] environment variables, then
 ## [code]--platform-*[/code] arguments.
 
 @export_group("Admission")
@@ -57,7 +57,7 @@ extends GSConfig
 
 
 func env_prefix() -> String:
-	return "DOT_PLATFORM_"
+	return "GS_PLATFORM_"
 
 
 func cli_prefix() -> String:

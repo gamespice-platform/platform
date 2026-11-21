@@ -2,14 +2,14 @@
 
 Joins GameSpice Auth, GameSpice User and GameSpice User Avatar into one admission flow and binds it to a GameSpice Server; `GSPlatformIdentity` is the identity layer every game builds on. Its examples are the only place the family's addons run together.
 
-Read the family [CLAUDE.md](../../CLAUDE.md) first, then [PLATFORM.md](../../PLATFORM.md), the design this implements. This file is only what is specific to dot-platform.
+Read the family [CLAUDE.md](../../CLAUDE.md) first, then [PLATFORM.md](../../PLATFORM.md), the design this implements. This file is only what is specific to gs-platform.
 
-**The distributable is `addons/dot_platform/`.** Every other addon is symlinked in and in `.gitignore`. Create the links before validating:
+**The distributable is `addons/gs_platform/`.** Every other addon is symlinked in and in `.gitignore`. Create the links before validating:
 
 ```bash
-for a in dot_core:dot-core dot_auth:dot-auth dot_user:dot-user \
-         dot_user_avatar:dot-user-avatar dot_server:dot-server dot_cloud:dot-cloud \
-         dot_net:dot-net dot_player:dot-player dot_player_controller:dot-player-controller; do
+for a in gs_core:gs-core gs_auth:gs-auth gs_user:gs-user \
+         gs_user_avatar:gs-user-avatar gs_server:gs-server gs_cloud:gs-cloud \
+         gs_net:gs-net gs_player:gs-player gs_player_controller:gs-player-controller; do
     ln -sfn "../../${a##*:}/addons/${a%%:*}" "addons/${a%%:*}"
 done
 ```
@@ -25,20 +25,20 @@ done
 
 | Path | What |
 | --- | --- |
-| `addons/dot_platform/dot_platform.gd` | `GSPlatformHub`: the uid to scoped-key translation, admission |
-| `addons/dot_platform/dot_platform_player.gd` | `GSPlatformPlayer`: one admitted player; `account_uid()` |
-| `addons/dot_platform/dot_platform_module.gd` | `GSPlatformModule`: the GameSpice Server module; holds the PROFILE stage while admission runs, the late path, the three server events |
-| `addons/dot_platform/dot_platform_identity.gd` | `GSPlatformIdentity`: the identity layer a game subclasses or returns from GameSpice Game's `_make_identity()` |
-| `addons/dot_platform/dot_platform_users.gd` | `GSPlatformUsers`: GameSpice User's manager, telling the profile store which keys the site issued |
-| `addons/dot_platform/dot_platform_profile_store.gd` | `GSPlatformProfileStore`: site-issued keys to the site's profile store, every other key to this server's disk |
-| `addons/dot_platform/dot_platform_config.gd` | `GSPlatformConfig` |
-| `addons/dot_platform/dot_platform_api.gd` | the API `LEVEL` and `OLDEST` a game checks |
+| `addons/gs_platform/gs_platform.gd` | `GSPlatformHub`: the uid to scoped-key translation, admission |
+| `addons/gs_platform/gs_platform_player.gd` | `GSPlatformPlayer`: one admitted player; `account_uid()` |
+| `addons/gs_platform/gs_platform_module.gd` | `GSPlatformModule`: the GameSpice Server module; holds the PROFILE stage while admission runs, the late path, the three server events |
+| `addons/gs_platform/gs_platform_identity.gd` | `GSPlatformIdentity`: the identity layer a game subclasses or returns from GameSpice Game's `_make_identity()` |
+| `addons/gs_platform/gs_platform_users.gd` | `GSPlatformUsers`: GameSpice User's manager, telling the profile store which keys the site issued |
+| `addons/gs_platform/gs_platform_profile_store.gd` | `GSPlatformProfileStore`: site-issued keys to the site's profile store, every other key to this server's disk |
+| `addons/gs_platform/gs_platform_config.gd` | `GSPlatformConfig` |
+| `addons/gs_platform/gs_platform_api.gd` | the API `LEVEL` and `OLDEST` a game checks |
 | `examples/seam_selftest.tscn` | every handoff, with real managers; one section per seam |
 | `examples/sandbox_server.tscn` | a real server and client in one process, on port 27077 |
 
 ## Running and testing
 
-The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything)), parsing only this repository's scripts (a plain `find` does not follow the symlinked addons, so no filter: a `-not -path './addons/dot_*/*'` would skip `addons/dot_platform/` too), then `res://examples/seam_selftest.tscn` and `res://examples/sandbox_server.tscn`.
+The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything)), parsing only this repository's scripts (a plain `find` does not follow the symlinked addons, so no filter: a `-not -path './addons/gs_*/*'` would skip `addons/gs_platform/` too), then `res://examples/seam_selftest.tscn` and `res://examples/sandbox_server.tscn`.
 
 `sandbox_server` binds a real port (27077): a failure there is as likely to be the environment as the code. It fails rather than hangs, with the client's phase in the message.
 
@@ -56,8 +56,8 @@ The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything))
 - The seam suite's site checks run the real `GSHttp` against a loopback HTTP server (`MiniSite`); a faked client hid an orphan HTTP node for weeks. [history](docs/history.md#the-site-avatar-store-never-sent-a-request)
 - `GSPlatformModule` must keep returning when its hub is no longer valid. [design](docs/design.md#a-module-whose-hub-was-freed-admits-nobody)
 - Two multiplayer APIs in one tree: RPC routing is the node path under each root, so the client link is named `Server`. [design](docs/design.md#two-multiplayerapi-instances-in-one-process)
-- Check a new `class_name` against every addon in the family (`GSPlatform` is GameSpice Core's). [history](docs/history.md#a-class-name-that-broke-dot-core)
+- Check a new `class_name` against every addon in the family (`GSPlatform` is GameSpice Core's). [history](docs/history.md#a-class-name-that-broke-gs-core)
 - Add a case to `seam_selftest` for any change to a handoff: it is the only test that runs more than one of these addons at once.
-- Raise `LEVEL` in `dot_platform_api.gd` for anything new a game could call. [dot_platform_api.gd](addons/dot_platform/dot_platform_api.gd)
+- Raise `LEVEL` in `gs_platform_api.gd` for anything new a game could call. [gs_platform_api.gd](addons/gs_platform/gs_platform_api.gd)
 
 Deliberately not here: a game, the avatar editor UI, matchmaking and discovery. [design](docs/design.md#deliberately-not-here)

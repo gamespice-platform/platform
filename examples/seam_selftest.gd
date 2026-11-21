@@ -19,7 +19,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("dot-platform seam self-test")
+	print("gs-platform seam self-test")
 	print("")
 
 	_cleanup()
@@ -299,7 +299,7 @@ func _identity_variants() -> void:
 	credential.integration_token = "tmci_test"
 	var fake_client := FakeBackboneHolder.new()
 	fake_client.config = credential
-	GSRegistry.register(&"dot_backbone_client", fake_client)
+	GSRegistry.register(&"gs_backbone_client", fake_client)
 
 	var sited := GSPlatformIdentity.new()
 	sited.avatar_schema = _schema
@@ -334,7 +334,7 @@ func _identity_variants() -> void:
 	var reported: GSResult = await reporting._build_backbone()
 	_check(
 		reported.ok and reporting.backbone == null
-			and GSRegistry.get_service(&"dot_backbone_client") == fake_client,
+			and GSRegistry.get_service(&"gs_backbone_client") == fake_client,
 		"with the host's backbone client registered, the identity builds none of its own and still succeeds",
 		str(reported.error)
 	)
@@ -366,7 +366,7 @@ func _test_site_profiles() -> void:
 	credential.integration_token = "tmci_seam"
 	var holder := FakeBackboneHolder.new()
 	holder.config = credential
-	GSRegistry.register(&"dot_backbone_client", holder)
+	GSRegistry.register(&"gs_backbone_client", holder)
 
 	var server_a := GSPlatformIdentity.new()
 	server_a.avatar_schema = _schema
@@ -456,9 +456,9 @@ func _site_other_servers(
 ) -> void:
 	server_a.queue_free()
 	await get_tree().process_frame
-	GSRegistry.unregister(&"dot_user_manager")
-	GSRegistry.unregister(&"dot_avatar_manager")
-	GSRegistry.unregister(&"dot_platform")
+	GSRegistry.unregister(&"gs_user_manager")
+	GSRegistry.unregister(&"gs_avatar_manager")
+	GSRegistry.unregister(&"gs_platform")
 
 	var server_b := GSPlatformIdentity.new()
 	server_b.avatar_schema = _schema
@@ -473,9 +473,9 @@ func _site_other_servers(
 	)
 	server_b.queue_free()
 	await get_tree().process_frame
-	GSRegistry.unregister(&"dot_user_manager")
-	GSRegistry.unregister(&"dot_avatar_manager")
-	GSRegistry.unregister(&"dot_platform")
+	GSRegistry.unregister(&"gs_user_manager")
+	GSRegistry.unregister(&"gs_avatar_manager")
+	GSRegistry.unregister(&"gs_platform")
 
 	# The site answers 403: the server keeps profiles itself rather than degrading members.
 	site.refuse_with = 403
@@ -520,7 +520,7 @@ func _site_without_credential(holder: Object) -> void:
 	GSRegistry.clear()
 
 	# And a host that turned it off keeps them local with the credential present.
-	GSRegistry.register(&"dot_backbone_client", holder)
+	GSRegistry.register(&"gs_backbone_client", holder)
 	var off := GSPlatformIdentity.new()
 	off.use_backbone_profiles = false
 	add_child(off)

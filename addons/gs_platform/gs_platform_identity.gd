@@ -5,11 +5,11 @@ extends Node
 ## flow, built in the order they depend on each other.
 ##
 ## [codeblock]
-## GameSpice Cloud    downloads and mounts content. Registers `dot_cloud_client`.
+## GameSpice Cloud    downloads and mounts content. Registers `gs_cloud_client`.
 ## GameSpice Auth     reports this server to its site listing, when asked to.
 ## GameSpice User     the profile that follows a player between servers (on the site, for a
 ##              player the site issued a key for, when the host holds its credential).
-## dot-avatar   what they look like, over the GAME's schema.
+## gs-avatar   what they look like, over the GAME's schema.
 ## GameSpice Platform joins the three into ONE admission, as its own GSModule.
 ## [/codeblock]
 ##
@@ -19,13 +19,13 @@ extends Node
 ## things a game hands this; everything else is the chain.
 ##
 ## [b]Authentication is not here.[/b] Proving who somebody is happens in GameSpice Server's
-## handshake, against whatever `dot_auth_server` the host registered; a deployment turns it
+## handshake, against whatever `gs_auth_server` the host registered; a deployment turns it
 ## on for every game it runs, and a game does not get a say. What this layer does is
 ## everything AFTER that: turning the proven identity into a scoped profile, a name and an
 ## avatar.
 ##
 ## [b]GameSpice Cloud is registered or it is not built at all.[/b] Four call sites in two other
-## addons look it up under `dot_cloud_client`, and every one of them treats an absent cloud
+## addons look it up under `gs_cloud_client`, and every one of them treats an absent cloud
 ## as "this deployment ships its content in its build" — a legitimate configuration, and
 ## therefore indistinguishable from `GSCloudClient` once failing to publish itself, which
 ## left GameSpice Server, GameSpice User Avatar and GameSpice Map all finding null without one error between
@@ -40,7 +40,7 @@ extends Node
 ## await identity.setup()
 ## # By PATH: GSModuleHost constructs the module itself, and finds the hub this
 ## # registered. platform_module() is for a host that adds the node by hand.
-## await server.modules.load_module("res://addons/dot_platform/dot_platform_module.gd")
+## await server.modules.load_module("res://addons/gs_platform/gs_platform_module.gd")
 ## [/codeblock]
 ##
 ## A GameSpice Game module returns one from `_make_identity()` and needs none of the last line:
@@ -108,7 +108,7 @@ var avatar_translate_fn: Callable = Callable()
 ## Read avatars from the site when the server holds an integration credential.
 ##
 ## [b]On, and found rather than configured.[/b] A host that has registered a
-## `dot_backbone_client` (GameSpice Server Deploy does, from data/listing.json) has the one
+## `gs_backbone_client` (GameSpice Server Deploy does, from data/listing.json) has the one
 ## credential the site's avatar route accepts for this server, and the keys GameSpice Auth's
 ## scoped introspection hands GameSpice User are the ones that route resolves. Without it the
 ## manager's store is a local file the site never sees, which is how every avatar a
@@ -203,7 +203,7 @@ func _build_backbone() -> GSResult:
 	# The host's client, when it has one (GameSpice Server Deploy builds it from data/listing.json), is the
 	# server's credential. A second client here is built from a bare GSAuthConfig with no token, so it
 	# fails with "No integration token" at ERROR on every boot of an enrolled server and reports nothing.
-	var host_client: Object = GSRegistry.get_service(&"dot_backbone_client")
+	var host_client: Object = GSRegistry.get_service(&"gs_backbone_client")
 
 	if host_client != null:
 		GSLog.info(CHANNEL, "the host's backbone client is used", {})
@@ -307,12 +307,12 @@ func _backbone_profile_store() -> GSUserStoreBackbone:
 	return store
 
 
-## `[integration base URL, token]` from the host's `dot_backbone_client`, or empty.
+## `[integration base URL, token]` from the host's `gs_backbone_client`, or empty.
 ##
 ## Duck-typed through the registry: the client is GameSpice Auth's, and a host without one is
 ## a LAN server whose avatars and profiles are its own.
 func _integration_credential() -> PackedStringArray:
-	var client: Object = GSRegistry.get_service(&"dot_backbone_client")
+	var client: Object = GSRegistry.get_service(&"gs_backbone_client")
 	var cfg: Object = client.get("config") if client != null else null
 
 	if cfg == null or not cfg.has_method("integration_endpoint"):

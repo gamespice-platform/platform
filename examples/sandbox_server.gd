@@ -72,7 +72,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("dot-platform sandbox server")
+	print("gs-platform sandbox server")
 	print("")
 
 	_cleanup()
@@ -263,7 +263,7 @@ func _build_server(server_side: Node) -> bool:
 
 	# The module finds the hub through GSRegistry, so a path rather than an instance is fine.
 	var loaded: GSResult = await _server.modules.load_module(
-		"res://addons/dot_platform/dot_platform_module.gd"
+		"res://addons/gs_platform/gs_platform_module.gd"
 	)
 
 	if not _check(loaded.ok, "the platform module loads into the server", str(loaded.error)):

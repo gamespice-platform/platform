@@ -182,7 +182,7 @@ func _make_platform() -> GSPlatformHub:
 
 
 func _test_identity_to_profile() -> void:
-	_section("dot-auth to dot-user")
+	_section("gs-auth to gs-user")
 
 	var authenticated: GSResult = await _authenticate("acc-1", "Ada", SERVER_A)
 
@@ -197,7 +197,7 @@ func _test_identity_to_profile() -> void:
 	var users := _make_users("server:%s" % SERVER_A)
 	var ready: GSResult = await users.setup()
 
-	if not _check(ready.ok, "dot-user sets up", str(ready.error)):
+	if not _check(ready.ok, "gs-user sets up", str(ready.error)):
 		return
 
 	# The seam: GameSpice User duck-types the identity on uid, display_name and is_guest,
@@ -205,7 +205,7 @@ func _test_identity_to_profile() -> void:
 	# other. This is what that claim being true looks like.
 	var resolved: GSResult = await users.resolve(identity)
 
-	if not _check(resolved.ok, "dot-user accepts a GSAuthIdentity", str(resolved.error)):
+	if not _check(resolved.ok, "gs-user accepts a GSAuthIdentity", str(resolved.error)):
 		return
 
 	var profile: GSUserProfile = resolved.value
@@ -234,7 +234,7 @@ func _test_identity_to_profile() -> void:
 
 
 func _test_profile_to_avatar() -> void:
-	_section("dot-user to dot-user-avatar")
+	_section("gs-user to gs-user-avatar")
 
 	var authenticated: GSResult = await _authenticate("acc-2", "Grace", SERVER_A)
 	var users := _make_users("server:%s" % SERVER_A)
@@ -243,7 +243,7 @@ func _test_profile_to_avatar() -> void:
 	var avatars := _make_avatars()
 	var avatar_ready: GSResult = await avatars.setup()
 
-	if not _check(avatar_ready.ok, "dot-user-avatar sets up", str(avatar_ready.error)):
+	if not _check(avatar_ready.ok, "gs-user-avatar sets up", str(avatar_ready.error)):
 		return
 
 	var resolved: GSResult = await users.resolve(authenticated.value)
@@ -254,7 +254,7 @@ func _test_profile_to_avatar() -> void:
 	# without the two addons depending on each other.
 	_check(
 		GSAvatarKey.is_usable(profile.user_key),
-		"dot-user-avatar accepts a dot-user scoped key",
+		"gs-user-avatar accepts a gs-user scoped key",
 		profile.user_key
 	)
 
@@ -355,8 +355,8 @@ func _test_full_admission() -> void:
 	if not _check(ready.ok, "the platform sets up", str(ready.error)):
 		return
 
-	_check(hub.users() != null, "and finds dot-user through GSRegistry")
-	_check(hub.avatars() != null, "and dot-user-avatar")
+	_check(hub.users() != null, "and finds gs-user through GSRegistry")
+	_check(hub.avatars() != null, "and gs-user-avatar")
 
 	var authenticated: GSResult = await _authenticate("acc-4", "Margaret", SERVER_A)
 	var admitted: GSResult = await hub.admit(authenticated.value)
@@ -471,8 +471,8 @@ func _test_absent_addons() -> void:
 	var hub := _make_platform()
 	await hub.setup()
 
-	_check(hub.users() == null, "no dot-user is installed")
-	_check(hub.avatars() == null, "no dot-user-avatar is installed")
+	_check(hub.users() == null, "no gs-user is installed")
+	_check(hub.avatars() == null, "no gs-user-avatar is installed")
 
 	var authenticated: GSResult = await _authenticate("acc-6", "Joan", SERVER_A)
 	var admitted: GSResult = await hub.admit(authenticated.value)
@@ -506,7 +506,7 @@ func _test_absent_addons() -> void:
 		(await _authenticate("acc-7", "Hedy", SERVER_A)).value
 	)
 
-	_check(half.ok, "dot-user alone is a working configuration")
+	_check(half.ok, "gs-user alone is a working configuration")
 	_check(
 		half.ok and (half.value as GSPlatformPlayer).profile != null,
 		"the player has a profile"

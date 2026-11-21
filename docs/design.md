@@ -1,6 +1,6 @@
 # Design
 
-Why dot-platform is shaped the way it is. The platform design it implements is [PLATFORM.md](../../../PLATFORM.md).
+Why gs-platform is shaped the way it is. The platform design it implements is [PLATFORM.md](../../../PLATFORM.md).
 
 ## Why this exists
 
@@ -26,7 +26,7 @@ The managers are found through `GSRegistry`, never imported, and every absence h
 
 This is not politeness. A platform that required all three to start would be unusable on day one of a project, which is when people decide whether to adopt something.
 
-Optional here means at run time. `dot_platform_player.gd` names types from GameSpice Auth, GameSpice User and GameSpice User Avatar, and `GSPlatformIdentity` also names `GSCloudClient`, `GSUserManager`, `GSAvatarManager` and `GSBackboneClient`, so at parse time those addons are required.
+Optional here means at run time. `gs_platform_player.gd` names types from GameSpice Auth, GameSpice User and GameSpice User Avatar, and `GSPlatformIdentity` also names `GSCloudClient`, `GSUserManager`, `GSAvatarManager` and `GSBackboneClient`, so at parse time those addons are required.
 
 ## Admission gates the spawn
 
@@ -58,11 +58,11 @@ Every game built the same chain in front of this addon: GameSpice Cloud (registe
 - **`avatar_for` is never null while there is a schema.** Platform first, then the game's stock function, then `default_avatar()`. A game with no schema builds no avatar manager and gets null, which is the honest answer for a game with no avatars.
 - **`platform_module()` is a Node outside the tree until a server loads it.** One nothing loaded would leak with the hub it holds, so the layer frees an unparented module on `NOTIFICATION_PREDELETE`. One a server loaded is the server's.
 - **A site-issued player's profile is read from and written to the site** ([below](#a-site-issued-players-profile-lives-on-the-site)); `users` is a `GSPlatformUsers`, which is a `GSUserManager`.
-- **A member's site avatar is read from the site.** With `use_backbone_avatars` (on), the layer finds the host's `dot_backbone_client` in the registry and reads through the site's avatar route on that credential, read only. The site's document is over its `builtin` schema, which every game's schema refuses; `avatar_translate_fn` is the game saying what those choices mean in its terms, passed to `GSAvatarManager.translate_fn`.
+- **A member's site avatar is read from the site.** With `use_backbone_avatars` (on), the layer finds the host's `gs_backbone_client` in the registry and reads through the site's avatar route on that credential, read only. The site's document is over its `builtin` schema, which every game's schema refuses; `avatar_translate_fn` is the game saying what those choices mean in its terms, passed to `GSAvatarManager.translate_fn`.
 
 ## A site-issued player's profile lives on the site
 
-With `use_backbone_profiles` (on) and a `dot_backbone_client` holding an integration token, `GSPlatformIdentity` builds GameSpice User's `GSUserStoreBackbone` on that credential, found exactly as the avatar store is, and hands it to the manager it builds (`GSPlatformUsers`). The manager's store is then a `GSPlatformProfileStore` that routes per key:
+With `use_backbone_profiles` (on) and a `gs_backbone_client` holding an integration token, `GSPlatformIdentity` builds GameSpice User's `GSUserStoreBackbone` on that credential, found exactly as the avatar store is, and hands it to the manager it builds (`GSPlatformUsers`). The manager's store is then a `GSPlatformProfileStore` that routes per key:
 
 - **Only a key the site issued goes to the site.** GameSpice Auth's scoped introspection puts the site's key in the `scoped_key` claim, and `GSPlatformUsers.key_for` (the one place both the identity and the key are in hand, called before the read) marks it. A guest, a local account, or any key GameSpice User derived from this server's secret is a key the site never minted: the site would answer every read with 404 (a first-time player, every visit) and every save on leave with an ERROR. Those stay on this server's disk, as every profile did before.
 - **A credential the site refuses (401/403) falls back for the life of the process**, said once at WARN, rather than degrading every member to a session-only profile. A credential enrolled before `PROFILE_READ` / `PROFILE_WRITE` were granted is the case this is for. Any other failure passes through, and GameSpice User degrades that one player without overwriting the real profile.

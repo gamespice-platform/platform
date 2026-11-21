@@ -32,11 +32,11 @@ extends Node
 ## adopt something.
 
 const CHANNEL := "platform"
-const SERVICE := &"dot_platform"
+const SERVICE := &"gs_platform"
 
 ## Registry names of the addons this joins. Looked up, never imported.
-const USER_SERVICE := &"dot_user_manager"
-const AVATAR_SERVICE := &"dot_avatar_manager"
+const USER_SERVICE := &"gs_user_manager"
+const AVATAR_SERVICE := &"gs_avatar_manager"
 
 ## Emitted once a player is fully admitted.
 signal player_admitted(player: GSPlatformPlayer)
@@ -54,7 +54,7 @@ signal player_released(key: String)
 
 @export var config: GSPlatformConfig = null
 
-@export var config_file: String = "user://dot_platform.json"
+@export var config_file: String = "user://gs_platform.json"
 
 @export var load_layered_config: bool = true
 
@@ -250,7 +250,7 @@ func _resolve_avatar(player: GSPlatformPlayer) -> bool:
 		# exactly the correlation GameSpice User's scoping exists to prevent.
 		GSLog.debug(
 			CHANNEL,
-			"no profile key, so no avatar; install dot-user to give players one"
+			"no profile key, so no avatar; install gs-user to give players one"
 		)
 		player.stage = GSPlatformPlayer.Stage.DRESSED
 		return true
@@ -484,8 +484,8 @@ func describe() -> Dictionary:
 	return {
 		"ready": _ready_ok,
 		"config": config.describe_summary() if config != null else "<none>",
-		"profiles": "dot-user" if users() != null else "<absent>",
-		"avatars": "dot-user-avatar" if avatars() != null else "<absent>",
+		"profiles": "gs-user" if users() != null else "<absent>",
+		"avatars": "gs-user-avatar" if avatars() != null else "<absent>",
 		"players": _players.size(),
 		"timed_out": timed_out_count,
 	}
@@ -498,10 +498,10 @@ func describe_lines() -> PackedStringArray:
 		config.describe_summary() if config != null else "<unconfigured>"
 	))
 	out.append("profiles     %s" % (
-		"dot-user" if users() != null else "not installed"
+		"gs-user" if users() != null else "not installed"
 	))
 	out.append("avatars      %s" % (
-		"dot-user-avatar" if avatars() != null else "not installed"
+		"gs-user-avatar" if avatars() != null else "not installed"
 	))
 	out.append("players      %d admitted" % _players.size())
 

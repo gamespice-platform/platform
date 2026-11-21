@@ -7,10 +7,10 @@ extends EditorPlugin
 ## once — which is exactly what this project's own listen-server example does — and a
 ## singleton platform would make that impossible.
 
-const _ICON := "res://addons/dot_platform/icon_placeholder.svg"
+const _ICON := "res://addons/gs_platform/icon_placeholder.svg"
 
 const _TYPES := [
-	["GSPlatformHub", "Node", "res://addons/dot_platform/dot_platform.gd"],
+	["GSPlatformHub", "Node", "res://addons/gs_platform/gs_platform.gd"],
 ]
 
 

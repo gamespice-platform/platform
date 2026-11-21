@@ -6,7 +6,7 @@ Requires [GameSpice Core](https://github.com/gamespice-platform/core) and [GameS
 
 ## Install
 
-1. Copy `addons/dot_platform/` and `addons/dot_core/` into your project, plus whichever of GameSpice Auth, GameSpice User and GameSpice User Avatar you want.
+1. Copy `addons/gs_platform/` and `addons/gs_core/` into your project, plus whichever of GameSpice Auth, GameSpice User and GameSpice User Avatar you want.
 2. Enable them in *Project > Project Settings > Plugins*.
 
 ## Use
@@ -15,7 +15,7 @@ Requires [GameSpice Core](https://github.com/gamespice-platform/core) and [GameS
 var hub := GSPlatformHub.new()
 add_child(hub)
 
-var admitted := await hub.admit(identity)      # identity from dot-auth
+var admitted := await hub.admit(identity)      # identity from gs-auth
 var player: GSPlatformPlayer = admitted.value
 
 player.key()            # scoped id, what everything else uses
@@ -26,7 +26,7 @@ player.avatar           # resolved and entitlement-checked
 On a GameSpice Server, load the module and it does this for every connection:
 
 ```gdscript
-server.modules.load_module("res://addons/dot_platform/dot_platform_module.gd")
+server.modules.load_module("res://addons/gs_platform/gs_platform_module.gd")
 ```
 
 It finds the hub through `GSRegistry`, admits each authenticated client, stores the result in `session.data["platform"]`, applies the profile's name, and cleans up when the client leaves. It adds the console commands `platform_status` and `platform_name`.
