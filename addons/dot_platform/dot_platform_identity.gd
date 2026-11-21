@@ -1,4 +1,4 @@
-class_name DotPlatformIdentity
+class_name GSPlatformIdentity
 extends Node
 
 ## Who a player is, for a game: content delivery, a profile, an avatar, and one admission
@@ -10,7 +10,7 @@ extends Node
 ## GameSpice User     the profile that follows a player between servers (on the site, for a
 ##              player the site issued a key for, when the host holds its credential).
 ## dot-avatar   what they look like, over the GAME's schema.
-## GameSpice Platform joins the three into ONE admission, as its own DotModule.
+## GameSpice Platform joins the three into ONE admission, as its own GSModule.
 ## [/codeblock]
 ##
 ## [b]This is the identity layer every game had a copy of.[/b] game-fatal-contact's was 262 lines
@@ -27,24 +27,24 @@ extends Node
 ## [b]GameSpice Cloud is registered or it is not built at all.[/b] Four call sites in two other
 ## addons look it up under `dot_cloud_client`, and every one of them treats an absent cloud
 ## as "this deployment ships its content in its build" — a legitimate configuration, and
-## therefore indistinguishable from `DotCloudClient` once failing to publish itself, which
+## therefore indistinguishable from `GSCloudClient` once failing to publish itself, which
 ## left GameSpice Server, GameSpice User Avatar and GameSpice Map all finding null without one error between
 ## them. A registered client that failed to start is a third thing: present, found, and
 ## unable to do anything.
 ##
 ## [codeblock]
-## var identity := DotPlatformIdentity.new()
+## var identity := GSPlatformIdentity.new()
 ## identity.avatar_schema = MyAvatars.schema()
 ## identity.stock_avatar_fn = MyAvatars.stock_avatar
 ## add_child(identity)
 ## await identity.setup()
-## # By PATH: DotModuleHost constructs the module itself, and finds the hub this
+## # By PATH: GSModuleHost constructs the module itself, and finds the hub this
 ## # registered. platform_module() is for a host that adds the node by hand.
 ## await server.modules.load_module("res://addons/dot_platform/dot_platform_module.gd")
 ## [/codeblock]
 ##
 ## A GameSpice Game module returns one from `_make_identity()` and needs none of the last line:
-## [code]DotGameModule[/code] loads the platform module itself.
+## [code]GSGameModule[/code] loads the platform module itself.
 
 const CHANNEL := "platform.identity"
 
@@ -64,7 +64,7 @@ const CHANNEL := "platform.identity"
 ## nobody would run, and GameSpice Auth's own defaults agree.
 @export var report_to_backbone: bool = false
 
-## Where the backbone is. Empty uses [DotAuthConfig]'s own default.
+## Where the backbone is. Empty uses [GSAuthConfig]'s own default.
 ##
 ## [b]A default endpoint is a security property, not a convenience.[/b] GameSpice Auth once
 ## shipped a domain that was not the site and was registered to nobody, so every deployment
@@ -88,17 +88,17 @@ const CHANNEL := "platform.identity"
 ## its schema before drawing it, so a manager validating against a different schema would
 ## accept avatars the renderer then silently rewrote. Null builds no avatar manager, and
 ## nobody has an avatar — which GameSpice Platform already answers.
-var avatar_schema: DotAvatarSchema = null
+var avatar_schema: GSAvatarSchema = null
 
-## `func(player_key: StringName) -> DotAvatar`: the avatar a player with none of their own
-## gets. Unset, [method DotAvatarSchema.default_avatar] — which dresses everybody alike.
+## `func(player_key: StringName) -> GSAvatar`: the avatar a player with none of their own
+## gets. Unset, [method GSAvatarSchema.default_avatar] — which dresses everybody alike.
 ##
 ## A game usually derives it from the key, so two stock players are not identical and one
 ## player is the same on every machine and every visit.
 var stock_avatar_fn: Callable = Callable()
 
-## `func(site_avatar: DotAvatar) -> DotAvatar`: a member's site avatar, in this game's
-## schema. See [member DotAvatarManager.translate_fn].
+## `func(site_avatar: GSAvatar) -> GSAvatar`: a member's site avatar, in this game's
+## schema. See [member GSAvatarManager.translate_fn].
 ##
 ## The site keeps one avatar per member over its own `builtin` schema; a game with a
 ## schema of its own says here what those choices mean in its terms. Unset, a member's
@@ -125,26 +125,26 @@ var use_backbone_avatars: bool = true
 ## one: that server). Everybody else — guests, local accounts, any key GameSpice User derived
 ## from this server's own secret — keeps a profile on this server's disk as before: the
 ## site has never heard of their key, and sending it would make every read a first-time
-## player and every save on leave an ERROR. See [DotPlatformProfileStore]. Read and
+## player and every save on leave an ERROR. See [GSPlatformProfileStore]. Read and
 ## written: the credential needs PROFILE_READ and PROFILE_WRITE, and a credential
 ## without them is said once and falls back to this server's disk.
 var use_backbone_profiles: bool = true
 
-var cloud: DotCloudClient = null
-var users: DotUserManager = null
-var avatars: DotAvatarManager = null
-var platform: DotPlatformHub = null
-var backbone: DotBackboneClient = null
+var cloud: GSCloudClient = null
+var users: GSUserManager = null
+var avatars: GSAvatarManager = null
+var platform: GSPlatformHub = null
+var backbone: GSBackboneClient = null
 
-var _module: DotPlatformModule = null
+var _module: GSPlatformModule = null
 
 
 ## Builds the whole chain. Returns the platform hub.
-func setup() -> DotResult:
+func setup() -> GSResult:
 	# Awaited, and typed, every one. Each step may reach a network — a content source, a
 	# profile store, an avatar store — and an un-awaited GDScript coroutine returns at its
 	# first suspension, so the branch after it would be testing a property of a Signal.
-	var clouded: DotResult = await _build_cloud()
+	var clouded: GSResult = await _build_cloud()
 
 	if not clouded.ok:
 		return clouded
@@ -152,36 +152,36 @@ func setup() -> DotResult:
 	if report_to_backbone:
 		# Not fatal. A server that cannot reach the backbone is a server that runs without
 		# a site listing, which is every LAN server there has ever been.
-		var reached: DotResult = await _build_backbone()
-		DotLog.result(CHANNEL, "the backbone client", reached)
+		var reached: GSResult = await _build_backbone()
+		GSLog.result(CHANNEL, "the backbone client", reached)
 
-	var usered: DotResult = await _build_users()
+	var usered: GSResult = await _build_users()
 
 	if not usered.ok:
 		return usered
 
-	var avatared: DotResult = await _build_avatars()
+	var avatared: GSResult = await _build_avatars()
 
 	if not avatared.ok:
 		return avatared
 
-	var platformed: DotResult = await _build_platform()
+	var platformed: GSResult = await _build_platform()
 	return platformed
 
 
-func _build_cloud() -> DotResult:
+func _build_cloud() -> GSResult:
 	if content_urls.is_empty() and content_dirs.is_empty():
 		# [b]No sources means no client, and building one anyway is worse than not.[/b]
-		# `DotCloudClient.start` refuses when signing is required and no trusted key is
+		# `GSCloudClient.start` refuses when signing is required and no trusted key is
 		# configured — correctly, because a client that mounts unsigned content will mount
 		# anything a server sends it — and says so with a red line on every boot: the shape
 		# this family calls "a warning that reads like a setting nobody has filled in".
-		DotLog.info(CHANNEL, "content ships in this build", {
+		GSLog.info(CHANNEL, "content ships in this build", {
 			"reason": "no content sources are configured"
 		})
-		return DotResult.success(null)
+		return GSResult.success(null)
 
-	cloud = DotCloudClient.new()
+	cloud = GSCloudClient.new()
 	cloud.name = "Cloud"
 	cloud.http_base_urls = content_urls
 	cloud.local_search_dirs = content_dirs
@@ -189,43 +189,43 @@ func _build_cloud() -> DotResult:
 	cloud.register_service = true
 	add_child(cloud)
 
-	var started: DotResult = await cloud.start()
+	var started: GSResult = await cloud.start()
 
 	if not started.ok:
 		# Downgraded rather than fatal: a game whose content ships in its build is the
 		# ordinary case rather than a broken one.
-		DotLog.info(CHANNEL, "content delivery is off", {"why": started.error.message})
+		GSLog.info(CHANNEL, "content delivery is off", {"why": started.error.message})
 
-	return DotResult.success(cloud)
+	return GSResult.success(cloud)
 
 
-func _build_backbone() -> DotResult:
+func _build_backbone() -> GSResult:
 	# The host's client, when it has one (GameSpice Server Deploy builds it from data/listing.json), is the
-	# server's credential. A second client here is built from a bare DotAuthConfig with no token, so it
+	# server's credential. A second client here is built from a bare GSAuthConfig with no token, so it
 	# fails with "No integration token" at ERROR on every boot of an enrolled server and reports nothing.
-	var host_client: Object = DotRegistry.get_service(&"dot_backbone_client")
+	var host_client: Object = GSRegistry.get_service(&"dot_backbone_client")
 
 	if host_client != null:
-		DotLog.info(CHANNEL, "the host's backbone client is used", {})
-		return DotResult.success(null)
+		GSLog.info(CHANNEL, "the host's backbone client is used", {})
+		return GSResult.success(null)
 
-	var config := DotAuthConfig.new()
+	var config := GSAuthConfig.new()
 
 	if backbone_url != "":
 		config.backbone_url = backbone_url
 
-	backbone = DotBackboneClient.new()
+	backbone = GSBackboneClient.new()
 	backbone.name = "Backbone"
 	backbone.config = config
 	backbone.auto_report = true
 	add_child(backbone)
 
-	var ready: DotResult = await backbone.start()
+	var ready: GSResult = await backbone.start()
 	return ready
 
 
-func _build_users() -> DotResult:
-	var managed := DotPlatformUsers.new()
+func _build_users() -> GSResult:
+	var managed := GSPlatformUsers.new()
 
 	if use_backbone_profiles:
 		# Before add_child: the manager's _ready builds its store.
@@ -236,16 +236,16 @@ func _build_users() -> DotResult:
 	users.register_service = true
 	add_child(users)
 
-	var ready: DotResult = await users.setup()
+	var ready: GSResult = await users.setup()
 	return ready
 
 
-func _build_avatars() -> DotResult:
+func _build_avatars() -> GSResult:
 	if avatar_schema == null:
-		DotLog.info(CHANNEL, "no avatars", {"reason": "the game gave no avatar schema"})
-		return DotResult.success(null)
+		GSLog.info(CHANNEL, "no avatars", {"reason": "the game gave no avatar schema"})
+		return GSResult.success(null)
 
-	avatars = DotAvatarManager.new()
+	avatars = GSAvatarManager.new()
 	avatars.name = "Avatars"
 	avatars.schema = avatar_schema
 	# [b]The game's stock look for somebody with nothing stored, not the schema's one
@@ -254,16 +254,16 @@ func _build_avatars() -> DotResult:
 	# platform had admitted was the same person, and the per-player variety a game draws
 	# lasted exactly until the profile arrived. Asked with the scoped key, so a player is
 	# the same person on every visit. Read at call time, so a game may set it late.
-	avatars.default_avatar_fn = func(user_key: String) -> DotAvatar:
+	avatars.default_avatar_fn = func(user_key: String) -> GSAvatar:
 		if not stock_avatar_fn.is_valid():
 			return null
 		var stock: Variant = stock_avatar_fn.call(StringName(user_key))
-		return stock as DotAvatar if stock is DotAvatar else null
-	avatars.translate_fn = func(foreign: DotAvatar) -> DotAvatar:
+		return stock as GSAvatar if stock is GSAvatar else null
+	avatars.translate_fn = func(foreign: GSAvatar) -> GSAvatar:
 		if not avatar_translate_fn.is_valid():
 			return null
 		var mine: Variant = avatar_translate_fn.call(foreign)
-		return mine as DotAvatar if mine is DotAvatar else null
+		return mine as GSAvatar if mine is GSAvatar else null
 
 	if use_backbone_avatars:
 		var site_store := _backbone_avatar_store()
@@ -274,34 +274,34 @@ func _build_avatars() -> DotResult:
 	avatars.register_service = true
 	add_child(avatars)
 
-	var ready: DotResult = await avatars.setup()
+	var ready: GSResult = await avatars.setup()
 	return ready
 
 
 ## The site's avatar store over the host's integration credential, or null.
-func _backbone_avatar_store() -> DotAvatarStoreBackbone:
+func _backbone_avatar_store() -> GSAvatarStoreBackbone:
 	var credential := _integration_credential()
 
 	if credential.is_empty():
 		return null
 
-	var store := DotAvatarStoreBackbone.at(credential[0], credential[1])
+	var store := GSAvatarStoreBackbone.at(credential[0], credential[1])
 	store.read_only = true
 
-	DotLog.info(CHANNEL, "avatars are read from the site", {"url": credential[0]})
+	GSLog.info(CHANNEL, "avatars are read from the site", {"url": credential[0]})
 	return store
 
 
 ## The site's profile store over the host's integration credential, or null.
-func _backbone_profile_store() -> DotUserStoreBackbone:
+func _backbone_profile_store() -> GSUserStoreBackbone:
 	var credential := _integration_credential()
 
 	if credential.is_empty():
 		return null
 
-	var store := DotUserStoreBackbone.at(credential[0], credential[1])
+	var store := GSUserStoreBackbone.at(credential[0], credential[1])
 
-	DotLog.info(CHANNEL, "site-issued players' profiles live on the site", {
+	GSLog.info(CHANNEL, "site-issued players' profiles live on the site", {
 		"url": credential[0]
 	})
 	return store
@@ -312,7 +312,7 @@ func _backbone_profile_store() -> DotUserStoreBackbone:
 ## Duck-typed through the registry: the client is GameSpice Auth's, and a host without one is
 ## a LAN server whose avatars and profiles are its own.
 func _integration_credential() -> PackedStringArray:
-	var client: Object = DotRegistry.get_service(&"dot_backbone_client")
+	var client: Object = GSRegistry.get_service(&"dot_backbone_client")
 	var cfg: Object = client.get("config") if client != null else null
 
 	if cfg == null or not cfg.has_method("integration_endpoint"):
@@ -327,8 +327,8 @@ func _integration_credential() -> PackedStringArray:
 	return PackedStringArray([base, token])
 
 
-func _build_platform() -> DotResult:
-	var config := DotPlatformConfig.new()
+func _build_platform() -> GSResult:
+	var config := GSPlatformConfig.new()
 	config.require_profile = require_profile
 	# Never. A player without an avatar gets a stock document that is a real avatar over
 	# the same schema; refusing them would be refusing somebody for the colour of a capsule.
@@ -336,25 +336,25 @@ func _build_platform() -> DotResult:
 	config.apply_profile_name = true
 	config.broadcast_avatar_changes = true
 
-	platform = DotPlatformHub.new()
+	platform = GSPlatformHub.new()
 	platform.name = "Platform"
 	platform.config = config
 	platform.load_layered_config = false
 	platform.register_service = true
 	add_child(platform)
 
-	var ready: DotResult = await platform.setup()
+	var ready: GSResult = await platform.setup()
 	return ready
 
 
-## The module a [DotServer] loads to put this in front of joining players.
+## The module a [GSServer] loads to put this in front of joining players.
 ##
-## GameSpice Platform ships its own [DotModule], which is the right shape: everything it
+## GameSpice Platform ships its own [GSModule], which is the right shape: everything it
 ## registers is removed again when it unloads, and a game that wanted a different admission
 ## flow replaces one module rather than editing another.
-func platform_module() -> DotPlatformModule:
+func platform_module() -> GSPlatformModule:
 	if _module == null:
-		_module = DotPlatformModule.new()
+		_module = GSPlatformModule.new()
 		_module.platform = platform
 
 	return _module
@@ -376,7 +376,7 @@ func _notification(what: int) -> void:
 ## to branch on "did this player have an avatar" would be a caller that draws nothing for a
 ## guest, and a server full of invisible guests is worse than one full of identical ones.
 ## Null only when the game gave no schema, which is a game with no avatars.
-func avatar_for(player_key: String) -> DotAvatar:
+func avatar_for(player_key: String) -> GSAvatar:
 	if platform != null:
 		var held := platform.player(player_key)
 
@@ -386,8 +386,8 @@ func avatar_for(player_key: String) -> DotAvatar:
 	if stock_avatar_fn.is_valid():
 		var stock: Variant = stock_avatar_fn.call(StringName(player_key))
 
-		if stock is DotAvatar:
-			return stock as DotAvatar
+		if stock is GSAvatar:
+			return stock as GSAvatar
 
 	if avatar_schema != null:
 		return avatar_schema.default_avatar()

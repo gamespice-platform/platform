@@ -1,15 +1,15 @@
 @tool
-class_name DotPlatformHub
+class_name GSPlatformHub
 extends Node
 
 ## Turns an authenticated identity into a player who can enter the world.
 ##
 ## [codeblock]
-## var platform := DotPlatformHub.new()
+## var platform := GSPlatformHub.new()
 ## add_child(platform)
 ##
 ## var admitted := await platform.admit(identity)
-## var player: DotPlatformPlayer = admitted.value
+## var player: GSPlatformPlayer = admitted.value
 ## [/codeblock]
 ##
 ## [b]This is the seam nothing else was testing.[/b] GameSpice Auth, GameSpice User and
@@ -20,7 +20,7 @@ extends Node
 ## in one process.
 ##
 ## [b]Everything optional stays optional.[/b] The managers are found through
-## [DotRegistry], never imported, and each one being absent has a defined answer:
+## [GSRegistry], never imported, and each one being absent has a defined answer:
 ##
 ## - no GameSpice User: every player is a guest with a session identity and no profile;
 ## - no GameSpice User Avatar: nobody has an avatar and nothing asks for one;
@@ -39,20 +39,20 @@ const USER_SERVICE := &"dot_user_manager"
 const AVATAR_SERVICE := &"dot_avatar_manager"
 
 ## Emitted once a player is fully admitted.
-signal player_admitted(player: DotPlatformPlayer)
+signal player_admitted(player: GSPlatformPlayer)
 
 ## Emitted when admission stops. The hook for a rejection message.
-signal player_refused(player: DotPlatformPlayer, reason: String)
+signal player_refused(player: GSPlatformPlayer, reason: String)
 
 ## Emitted when a player publishes a new avatar.
-signal avatar_changed(player: DotPlatformPlayer)
+signal avatar_changed(player: GSPlatformPlayer)
 
 ## Emitted when a player leaves and their state is released.
 signal player_released(key: String)
 
 @export_group("Configuration")
 
-@export var config: DotPlatformConfig = null
+@export var config: GSPlatformConfig = null
 
 @export var config_file: String = "user://dot_platform.json"
 
@@ -66,12 +66,12 @@ signal player_released(key: String)
 
 ## Where a player's entitlements come from.
 ##
-## Takes the identity, returns a [DotAvatarEntitlements]. Unset, every player gets
+## Takes the identity, returns a [GSAvatarEntitlements]. Unset, every player gets
 ## whatever is marked free in the schema and nothing else — which is the safe
 ## default: a bug here should make a cosmetic unwearable, never wearable by everyone.
 var entitlement_source: Callable = Callable()
 
-## scoped key -> DotPlatformPlayer, for everyone currently admitted.
+## scoped key -> GSPlatformPlayer, for everyone currently admitted.
 var _players: Dictionary = {}
 
 var _registered_name: StringName = &""
@@ -90,12 +90,12 @@ func _ready() -> void:
 	var res := setup()
 
 	if not res.ok:
-		DotLog.result(CHANNEL, "platform setup", res)
+		GSLog.result(CHANNEL, "platform setup", res)
 
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if config == null:
-		config = DotPlatformConfig.new()
+		config = GSPlatformConfig.new()
 
 	if load_layered_config or config_file != "":
 		var loaded := config.load_layered(config_file)
@@ -108,14 +108,14 @@ func setup() -> DotResult:
 
 	if register_service:
 		_registered_name = (
-			DotRegistry.scoped_name(SERVICE, service_scope)
+			GSRegistry.scoped_name(SERVICE, service_scope)
 			if service_scope != &"" else SERVICE
 		)
-		DotRegistry.register(_registered_name, self)
+		GSRegistry.register(_registered_name, self)
 
 	_ready_ok = true
 
-	DotLog.info(
+	GSLog.info(
 		CHANNEL,
 		"platform ready",
 		{
@@ -125,12 +125,12 @@ func setup() -> DotResult:
 		}
 	)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func _exit_tree() -> void:
 	if _registered_name != &"":
-		DotRegistry.unregister_instance(_registered_name, self)
+		GSRegistry.unregister_instance(_registered_name, self)
 		_registered_name = &""
 
 
@@ -140,12 +140,12 @@ func is_ready() -> bool:
 
 ## GameSpice User's manager, or null.
 func users() -> Object:
-	return DotRegistry.get_service(USER_SERVICE)
+	return GSRegistry.get_service(USER_SERVICE)
 
 
 ## GameSpice User Avatar's manager, or null.
 func avatars() -> Object:
-	return DotRegistry.get_service(AVATAR_SERVICE)
+	return GSRegistry.get_service(AVATAR_SERVICE)
 
 
 # --- Admission -------------------------------------------------------------
@@ -155,16 +155,16 @@ func avatars() -> Object:
 ## Never fails for "this player is new" — that is the common case. It fails only when
 ## the configuration says a missing profile or avatar is disqualifying, or when the
 ## identity itself is unusable.
-func admit(identity: Object) -> DotResult:
+func admit(identity: Object) -> GSResult:
 	if not _ready_ok:
-		return DotResult.fail(
-			DotError.CODE_STATE, "The platform is not ready yet."
+		return GSResult.fail(
+			GSError.CODE_STATE, "The platform is not ready yet."
 		)
 
 	if identity == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No identity to admit.")
+		return GSResult.fail(GSError.CODE_INVALID, "No identity to admit.")
 
-	var player := DotPlatformPlayer.for_identity(identity)
+	var player := GSPlatformPlayer.for_identity(identity)
 	player.entitlements = _entitlements_for(identity)
 
 	var deadline := (
@@ -181,7 +181,7 @@ func admit(identity: Object) -> DotResult:
 	# leak the result into the next player's admission.
 	if Time.get_ticks_msec() > deadline:
 		timed_out_count += 1
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"admission ran out of time; letting the player in with what resolved",
 			{"key": player.key(), "name": player.display_name()}
@@ -196,28 +196,28 @@ func admit(identity: Object) -> DotResult:
 	return _finish(player)
 
 
-func _resolve_profile(player: DotPlatformPlayer) -> bool:
+func _resolve_profile(player: GSPlatformPlayer) -> bool:
 	var manager := users()
 
 	if manager == null:
 		# No GameSpice User installed. The player has no profile and everything downstream
 		# has to cope, which is why key() is allowed to be empty.
-		player.stage = DotPlatformPlayer.Stage.PROFILED
+		player.stage = GSPlatformPlayer.Stage.PROFILED
 		return true
 
-	var resolved: DotResult = await manager.call("resolve", player.identity)
+	var resolved: GSResult = await manager.call("resolve", player.identity)
 
 	if not resolved.ok:
 		if config.require_profile:
 			player.refuse(resolved.error)
 			return false
 
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"could not resolve a profile; admitting without one",
 			{"error": str(resolved.error)}
 		)
-		player.stage = DotPlatformPlayer.Stage.PROFILED
+		player.stage = GSPlatformPlayer.Stage.PROFILED
 		return true
 
 	player.profile = resolved.value
@@ -231,15 +231,15 @@ func _resolve_profile(player: DotPlatformPlayer) -> bool:
 			manager.call("is_persistable", player.profile)
 		)
 
-	player.stage = DotPlatformPlayer.Stage.PROFILED
+	player.stage = GSPlatformPlayer.Stage.PROFILED
 	return true
 
 
-func _resolve_avatar(player: DotPlatformPlayer) -> bool:
+func _resolve_avatar(player: GSPlatformPlayer) -> bool:
 	var manager := avatars()
 
 	if manager == null:
-		player.stage = DotPlatformPlayer.Stage.DRESSED
+		player.stage = GSPlatformPlayer.Stage.DRESSED
 		return true
 
 	var key := player.key()
@@ -248,16 +248,16 @@ func _resolve_avatar(player: DotPlatformPlayer) -> bool:
 		# No profile, so no scoped key to file an avatar under. Refusing to invent one
 		# is the point: the only other option is keying on the account id, which is
 		# exactly the correlation GameSpice User's scoping exists to prevent.
-		DotLog.debug(
+		GSLog.debug(
 			CHANNEL,
 			"no profile key, so no avatar; install dot-user to give players one"
 		)
-		player.stage = DotPlatformPlayer.Stage.DRESSED
+		player.stage = GSPlatformPlayer.Stage.DRESSED
 		return true
 
 	var had_avatar: bool = await _stored_avatar_exists(manager, key)
 
-	var resolved: DotResult = await manager.call(
+	var resolved: GSResult = await manager.call(
 		"resolve", key, player.entitlements
 	)
 
@@ -266,26 +266,26 @@ func _resolve_avatar(player: DotPlatformPlayer) -> bool:
 			player.refuse(resolved.error)
 			return false
 
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"could not resolve an avatar; admitting without one",
 			{"key": key, "error": str(resolved.error)}
 		)
-		player.stage = DotPlatformPlayer.Stage.DRESSED
+		player.stage = GSPlatformPlayer.Stage.DRESSED
 		return true
 
 	player.avatar = resolved.value
 	player.needs_onboarding = _needs_onboarding(player, had_avatar)
 
 	if config.require_avatar and player.needs_onboarding:
-		player.refuse(DotError.make(
-			DotError.CODE_STATE,
+		player.refuse(GSError.make(
+			GSError.CODE_STATE,
 			"Make an avatar before joining.",
 			key
 		))
 		return false
 
-	player.stage = DotPlatformPlayer.Stage.DRESSED
+	player.stage = GSPlatformPlayer.Stage.DRESSED
 	return true
 
 
@@ -300,12 +300,12 @@ func _stored_avatar_exists(manager: Object, key: String) -> bool:
 	if store == null or not (store is Object):
 		return false
 
-	var fetched: DotResult = await (store as Object).call("fetch", key)
+	var fetched: GSResult = await (store as Object).call("fetch", key)
 
 	return fetched.ok and fetched.value != null
 
 
-func _needs_onboarding(player: DotPlatformPlayer, had_avatar: bool) -> bool:
+func _needs_onboarding(player: GSPlatformPlayer, had_avatar: bool) -> bool:
 	if config.onboarded_needs_avatar and not had_avatar:
 		return true
 
@@ -315,35 +315,35 @@ func _needs_onboarding(player: DotPlatformPlayer, had_avatar: bool) -> bool:
 	return false
 
 
-func _entitlements_for(identity: Object) -> DotAvatarEntitlements:
+func _entitlements_for(identity: Object) -> GSAvatarEntitlements:
 	if not entitlement_source.is_valid():
 		# Nothing owned. A part is wearable only if the schema marks it free, which is
 		# the safe direction to fail in.
-		return DotAvatarEntitlements.none()
+		return GSAvatarEntitlements.none()
 
 	var supplied: Variant = entitlement_source.call(identity)
 
-	if supplied is DotAvatarEntitlements:
+	if supplied is GSAvatarEntitlements:
 		return supplied
 
-	DotLog.warn(
+	GSLog.warn(
 		CHANNEL,
 		"the entitlement source returned something else; granting nothing",
 		{"got": type_string(typeof(supplied))}
 	)
 
-	return DotAvatarEntitlements.none()
+	return GSAvatarEntitlements.none()
 
 
-func _finish(player: DotPlatformPlayer) -> DotResult:
-	player.stage = DotPlatformPlayer.Stage.READY
+func _finish(player: GSPlatformPlayer) -> GSResult:
+	player.stage = GSPlatformPlayer.Stage.READY
 
 	if player.key() != "":
 		_players[player.key()] = player
 
 	player_admitted.emit(player)
 
-	DotLog.info(
+	GSLog.info(
 		CHANNEL,
 		"player admitted",
 		{
@@ -354,34 +354,34 @@ func _finish(player: DotPlatformPlayer) -> DotResult:
 		}
 	)
 
-	return DotResult.success(player)
+	return GSResult.success(player)
 
 
-func _refuse(player: DotPlatformPlayer) -> DotResult:
+func _refuse(player: GSPlatformPlayer) -> GSResult:
 	var reason := (
 		player.refusal.message if player.refusal != null else "Refused."
 	)
 
 	player_refused.emit(player, reason)
 
-	DotLog.info(
+	GSLog.info(
 		CHANNEL, "player refused", {"name": player.display_name(), "reason": reason}
 	)
 
-	return DotResult.failure(
+	return GSResult.failure(
 		player.refusal if player.refusal != null
-		else DotError.make(DotError.CODE_FORBIDDEN, "Refused.")
+		else GSError.make(GSError.CODE_FORBIDDEN, "Refused.")
 	)
 
 
 # --- While they are here ----------------------------------------------------
 
-func player(key: String) -> DotPlatformPlayer:
+func player(key: String) -> GSPlatformPlayer:
 	return _players.get(key)
 
 
-func players() -> Array[DotPlatformPlayer]:
-	var out: Array[DotPlatformPlayer] = []
+func players() -> Array[GSPlatformPlayer]:
+	var out: Array[GSPlatformPlayer] = []
 
 	for key in _players:
 		out.append(_players[key])
@@ -398,22 +398,22 @@ func count() -> int:
 ## [b]Goes through GameSpice User Avatar's own validation[/b] rather than trusting what
 ## arrived, and passes the entitlements resolved at admission — not any the client
 ## sent, which would make the whole entitlement system a suggestion.
-func set_avatar(key: String, avatar: DotAvatar) -> DotResult:
+func set_avatar(key: String, avatar: GSAvatar) -> GSResult:
 	var target := player(key)
 
 	if target == null:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "That player is not here.", key
+		return GSResult.fail(
+			GSError.CODE_INVALID, "That player is not here.", key
 		)
 
 	var manager := avatars()
 
 	if manager == null:
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED, "This server has no avatar support."
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED, "This server has no avatar support."
 		)
 
-	var published: DotResult = await manager.call(
+	var published: GSResult = await manager.call(
 		"publish", key, avatar, target.entitlements
 	)
 
@@ -430,27 +430,27 @@ func set_avatar(key: String, avatar: DotAvatar) -> DotResult:
 
 		var users_manager := users()
 		if users_manager != null and not target.degraded:
-			var saved: DotResult = await users_manager.call("save", target.profile)
+			var saved: GSResult = await users_manager.call("save", target.profile)
 			if not saved.ok:
-				DotLog.result(CHANNEL, "recording onboarding", saved)
+				GSLog.result(CHANNEL, "recording onboarding", saved)
 
 	avatar_changed.emit(target)
 
-	return DotResult.success(avatar.digest())
+	return GSResult.success(avatar.digest())
 
 
 ## Changes a display name, through GameSpice User so every name rule applies.
-func set_display_name(key: String, requested: String) -> DotResult:
+func set_display_name(key: String, requested: String) -> GSResult:
 	var target := player(key)
 
 	if target == null:
-		return DotResult.fail(DotError.CODE_INVALID, "That player is not here.")
+		return GSResult.fail(GSError.CODE_INVALID, "That player is not here.")
 
 	var manager := users()
 
 	if manager == null or target.profile == null:
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED, "This server has no profiles."
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED, "This server has no profiles."
 		)
 
 	return manager.call(
@@ -518,9 +518,9 @@ func describe_lines() -> PackedStringArray:
 
 # --- A note on the name ----------------------------------------------------
 #
-# This class is DotPlatformHub, not DotPlatform, because GameSpice Core already has a
-# DotPlatform — the capability helper behind DotPlatform.has_threads() and
-# DotPlatform.is_web(). class_name is global in Godot and these addons install side
+# This class is GSPlatformHub, not GSPlatform, because GameSpice Core already has a
+# GSPlatform — the capability helper behind GSPlatform.has_threads() and
+# GSPlatform.is_web(). class_name is global in Godot and these addons install side
 # by side, so the collision was not a style problem: it made GameSpice Core's own scripts
 # fail to parse the moment this addon was present, and the errors pointed at
 # GameSpice Auth, which does not mention either class.

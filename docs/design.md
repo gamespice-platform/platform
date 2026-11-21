@@ -16,25 +16,25 @@ identity.uid          "backbone:acc-1"     global; a server must never see this
    -> avatar filed under the SAME scoped key
 ```
 
-`DotPlatformHub` is the only place this happens. Keying the avatar on `identity.uid` would pass every test in every other repository and quietly undo GameSpice User's scoping, which is the single security property the platform design rests on.
+`GSPlatformHub` is the only place this happens. Keying the avatar on `identity.uid` would pass every test in every other repository and quietly undo GameSpice User's scoping, which is the single security property the platform design rests on.
 
-`DotPlatformPlayer.account_uid()` is named to be conspicuous. Anything that stores, logs or transmits its result is undoing the scoping; it exists because admission needs it exactly once.
+`GSPlatformPlayer.account_uid()` is named to be conspicuous. Anything that stores, logs or transmits its result is undoing the scoping; it exists because admission needs it exactly once.
 
 ## Everything optional stays optional
 
-The managers are found through `DotRegistry`, never imported, and every absence has a defined answer: no GameSpice User means no profile and no scoped key; no GameSpice User Avatar means nobody has an avatar and nothing asks; neither means a player with a name and nothing else. `seam_selftest`'s "absent addons" section covers all three.
+The managers are found through `GSRegistry`, never imported, and every absence has a defined answer: no GameSpice User means no profile and no scoped key; no GameSpice User Avatar means nobody has an avatar and nothing asks; neither means a player with a name and nothing else. `seam_selftest`'s "absent addons" section covers all three.
 
 This is not politeness. A platform that required all three to start would be unusable on day one of a project, which is when people decide whether to adopt something.
 
-Optional here means at run time. `dot_platform_player.gd` names types from GameSpice Auth, GameSpice User and GameSpice User Avatar, and `DotPlatformIdentity` also names `DotCloudClient`, `DotUserManager`, `DotAvatarManager` and `DotBackboneClient`, so at parse time those addons are required.
+Optional here means at run time. `dot_platform_player.gd` names types from GameSpice Auth, GameSpice User and GameSpice User Avatar, and `GSPlatformIdentity` also names `GSCloudClient`, `GSUserManager`, `GSAvatarManager` and `GSBackboneClient`, so at parse time those addons are required.
 
 ## Admission gates the spawn
 
-GameSpice Server's signon runs `CONNECTING -> AUTHENTICATING -> PROFILE -> DOWNLOADING -> LOADING -> SPAWNED`. `PROFILE` (GameSpice Server API level 7) is the stage between authentication and content in which a module may hold a player and refuse them before anything has been sent that a refusal would have to take back: no content, no game, no spawn, no join line. `DotPlatformModule` holds every authenticated player there (`hold_profile(session, "platform")`) while `DotPlatformHub.admit` runs, then puts the platform state and the profile name on the session and releases them, so the game seats somebody who is already who they are. `require_avatar` and `require_profile` refuse in the stage with `refuse_profile` and the hub's sentence ("Make an avatar before joining."): the player reads it, the server never spawns them, and nobody saw them arrive.
+GameSpice Server's signon runs `CONNECTING -> AUTHENTICATING -> PROFILE -> DOWNLOADING -> LOADING -> SPAWNED`. `PROFILE` (GameSpice Server API level 7) is the stage between authentication and content in which a module may hold a player and refuse them before anything has been sent that a refusal would have to take back: no content, no game, no spawn, no join line. `GSPlatformModule` holds every authenticated player there (`hold_profile(session, "platform")`) while `GSPlatformHub.admit` runs, then puts the platform state and the profile name on the session and releases them, so the game seats somebody who is already who they are. `require_avatar` and `require_profile` refuse in the stage with `refuse_profile` and the hub's sentence ("Make an avatar before joining."): the player reads it, the server never spawns them, and nobody saw them arrive.
 
 - **The hold is taken synchronously, inside GameSpice Server's own `client_state_changed` for the stage.** The server looks at the holds as soon as its handlers return; a hold taken after an await finds the player already downloading.
 - **A slow store does not keep an optional player out.** Unless `require_avatar` or `require_profile` is on, the module lets the player in after `admission_timeout_sec` (plus half a second) and admission finishes behind them, as it did before the stage. A required admission keeps holding, because letting the player in would be the very spawn the stage exists to prevent; GameSpice Server's `profile_timeout_sec` (300 s) is the ceiling on that, for a player making an avatar as much as for a hung store. It is its own timeout for the reason the other stages have theirs: a player stuck choosing a hairstyle has a different problem from one stuck authenticating, and an operator has to be able to tell which.
-- **The old path stays, and it is the fallback, not dead code.** A session the module first hears of past the stage is admitted after the spawn, the way every session was before: a GameSpice Server older than the stage (the module reaches `hold_profile` through `Object.call`, so this addon still parses against one), a session a host adopted, a guest who signed in after spawning. A refusal there is `DotServer.kick`. `gates_spawn()` says which kind of server the module is in.
+- **The old path stays, and it is the fallback, not dead code.** A session the module first hears of past the stage is admitted after the spawn, the way every session was before: a GameSpice Server older than the stage (the module reaches `hold_profile` through `Object.call`, so this addon still parses against one), a session a host adopted, a guest who signed in after spawning. A refusal there is `GSServer.kick`. `gates_spawn()` says which kind of server the module is in.
 - **An unload lets everybody it holds in**, because a hold whose holder has gone is released by nothing and the player would wait out the stage's timeout.
 - **The client is not told.** It waits in its own `AUTHENTICATING` phase ("Signing in…"), which is why a client built before the stage joins unchanged. A game that wants to show its avatar editor during the stage sends its own optional envelope kind.
 
@@ -46,25 +46,25 @@ Admission usually finishes before the spawn now, but not always (the late path a
 
 - `player_admitted`, once admission has applied the profile name; gated, this fires before `client_spawn`, the game finds nobody seated to redraw, and seats them resolved;
 - `player_renamed` (plus `name`), after `session.display_name` is set;
-- `player_avatar_changed`, from the hub's `avatar_changed` when `DotPlatformConfig.broadcast_avatar_changes` is on.
+- `player_avatar_changed`, from the hub's `avatar_changed` when `GSPlatformConfig.broadcast_avatar_changes` is on.
 
 GameSpice Platform sends nothing to a client itself, which keeps it out of the netcode's business. `sandbox_server` checks admitted and renamed, and each fails with its line removed.
 
-## A game's identity layer is `DotPlatformIdentity`
+## A game's identity layer is `GSPlatformIdentity`
 
 Every game built the same chain in front of this addon: GameSpice Cloud (registered, or not built at all), the backbone client when the operator asked for one, GameSpice User, GameSpice User Avatar over the game's schema, and a hub, then `avatar_for(key)`. Two games' copies differed in one line once the class names were taken out. It lives here, and a game hands it two things: `avatar_schema` and `stock_avatar_fn`. game-fatal-contact and game-airdrift subclass it; the games on GameSpice Game return one from `_make_identity()`.
 
 - **The stock look is the platform's answer too.** It hands `stock_avatar_fn` to the avatar manager as `default_avatar_fn`, so a first-time player with nothing stored is resolved to the game's stock look for their scoped key rather than the schema's one default.
 - **`avatar_for` is never null while there is a schema.** Platform first, then the game's stock function, then `default_avatar()`. A game with no schema builds no avatar manager and gets null, which is the honest answer for a game with no avatars.
 - **`platform_module()` is a Node outside the tree until a server loads it.** One nothing loaded would leak with the hub it holds, so the layer frees an unparented module on `NOTIFICATION_PREDELETE`. One a server loaded is the server's.
-- **A site-issued player's profile is read from and written to the site** ([below](#a-site-issued-players-profile-lives-on-the-site)); `users` is a `DotPlatformUsers`, which is a `DotUserManager`.
-- **A member's site avatar is read from the site.** With `use_backbone_avatars` (on), the layer finds the host's `dot_backbone_client` in the registry and reads through the site's avatar route on that credential, read only. The site's document is over its `builtin` schema, which every game's schema refuses; `avatar_translate_fn` is the game saying what those choices mean in its terms, passed to `DotAvatarManager.translate_fn`.
+- **A site-issued player's profile is read from and written to the site** ([below](#a-site-issued-players-profile-lives-on-the-site)); `users` is a `GSPlatformUsers`, which is a `GSUserManager`.
+- **A member's site avatar is read from the site.** With `use_backbone_avatars` (on), the layer finds the host's `dot_backbone_client` in the registry and reads through the site's avatar route on that credential, read only. The site's document is over its `builtin` schema, which every game's schema refuses; `avatar_translate_fn` is the game saying what those choices mean in its terms, passed to `GSAvatarManager.translate_fn`.
 
 ## A site-issued player's profile lives on the site
 
-With `use_backbone_profiles` (on) and a `dot_backbone_client` holding an integration token, `DotPlatformIdentity` builds GameSpice User's `DotUserStoreBackbone` on that credential, found exactly as the avatar store is, and hands it to the manager it builds (`DotPlatformUsers`). The manager's store is then a `DotPlatformProfileStore` that routes per key:
+With `use_backbone_profiles` (on) and a `dot_backbone_client` holding an integration token, `GSPlatformIdentity` builds GameSpice User's `GSUserStoreBackbone` on that credential, found exactly as the avatar store is, and hands it to the manager it builds (`GSPlatformUsers`). The manager's store is then a `GSPlatformProfileStore` that routes per key:
 
-- **Only a key the site issued goes to the site.** GameSpice Auth's scoped introspection puts the site's key in the `scoped_key` claim, and `DotPlatformUsers.key_for` (the one place both the identity and the key are in hand, called before the read) marks it. A guest, a local account, or any key GameSpice User derived from this server's secret is a key the site never minted: the site would answer every read with 404 (a first-time player, every visit) and every save on leave with an ERROR. Those stay on this server's disk, as every profile did before.
+- **Only a key the site issued goes to the site.** GameSpice Auth's scoped introspection puts the site's key in the `scoped_key` claim, and `GSPlatformUsers.key_for` (the one place both the identity and the key are in hand, called before the read) marks it. A guest, a local account, or any key GameSpice User derived from this server's secret is a key the site never minted: the site would answer every read with 404 (a first-time player, every visit) and every save on leave with an ERROR. Those stay on this server's disk, as every profile did before.
 - **A credential the site refuses (401/403) falls back for the life of the process**, said once at WARN, rather than degrading every member to a session-only profile. A credential enrolled before `PROFILE_READ` / `PROFILE_WRITE` were granted is the case this is for. Any other failure passes through, and GameSpice User degrades that one player without overwriting the real profile.
 - **The router calls its inner stores' `_fetch` / `_store` / `_remove`**, not their public methods: its own public methods already checked the key, validated and stamped the profile, and a second pass logged a failed save twice.
 - **Where it follows a player is the credential's scope, not this addon's choice.** An app-bound credential scopes to the app, so every server holding it shares profiles; a server's own enrolled credential scopes to that server, so the profile survives restarts and reconnects there but another server sees a different key.
@@ -72,13 +72,13 @@ With `use_backbone_profiles` (on) and a `dot_backbone_client` holding an integra
 
 ## A module whose hub was freed admits nobody
 
-`DotPlatformModule._on_client_state_changed` returns when `platform` is no longer a valid instance. The hub belongs to whatever built it (a game's `DotPlatformIdentity`), and a game change frees it; a module left loaded past that would crash the server on the next admission. GameSpice Game unloads the module it loaded, and this guard keeps any other host that forgets from crashing.
+`GSPlatformModule._on_client_state_changed` returns when `platform` is no longer a valid instance. The hub belongs to whatever built it (a game's `GSPlatformIdentity`), and a game change frees it; a module left loaded past that would crash the server on the next admission. GameSpice Game unloads the module it loaded, and this guard keeps any other host that forgets from crashing.
 
 ## Two MultiplayerAPI instances in one process
 
 `sandbox_server` runs a server and a client in one tree. Both want `SceneTree.multiplayer` and there is one of those, so each half gets its own via `SceneTree.set_multiplayer(api, subtree_path)`.
 
-**RPCs are addressed by node path relative to each API root.** The client's `DotClientLink` is therefore named `Server`, matching the server's `DotServer` node under its own root. Any other name and every RPC fails with `Node not found: Server`. In a normal two-process deployment this is invisible because both are just "the game node". The same holds for any child with RPCs: **the name is the routing**, and both ends must declare the same set of `@rpc` methods ([history](history.md#what-the-first-run-together-found)).
+**RPCs are addressed by node path relative to each API root.** The client's `GSClientLink` is therefore named `Server`, matching the server's `GSServer` node under its own root. Any other name and every RPC fails with `Node not found: Server`. In a normal two-process deployment this is invisible because both are just "the game node". The same holds for any child with RPCs: **the name is the routing**, and both ends must declare the same set of `@rpc` methods ([history](history.md#what-the-first-run-together-found)).
 
 ## Deliberately not here
 

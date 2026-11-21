@@ -1,4 +1,4 @@
-class_name DotPlatformPlayer
+class_name GSPlatformPlayer
 extends RefCounted
 
 ## Everything the platform knows about one connected person, in one place.
@@ -19,7 +19,7 @@ extends RefCounted
 ##
 ## Keying the avatar on [code]identity.uid[/code] instead would work perfectly in
 ## testing and quietly hand every server operator a global identifier — which is the
-## exact thing GameSpice User's scoping exists to prevent. [DotPlatform] is the only place
+## exact thing GameSpice User's scoping exists to prevent. [GSPlatform] is the only place
 ## that translation happens.
 
 ## How far admission got.
@@ -40,29 +40,29 @@ enum Stage {
 
 ## Whatever GameSpice Auth produced. Duck-typed: uid, display_name, is_guest.
 ##
-## Deliberately [Object] rather than [code]DotAuthIdentity[/code]: GameSpice Platform runs
+## Deliberately [Object] rather than [code]GSAuthIdentity[/code]: GameSpice Platform runs
 ## on a server with no GameSpice Auth installed too, where GameSpice Server supplies its own
 ## guest identity with the same three fields.
 var identity: Object = null
 
 ## The profile, when GameSpice User is installed.
-var profile: DotUserProfile = null
+var profile: GSUserProfile = null
 
 ## The avatar, when GameSpice User Avatar is installed.
-var avatar: DotAvatar = null
+var avatar: GSAvatar = null
 
 ## What this player is allowed to wear.
-var entitlements: DotAvatarEntitlements = null
+var entitlements: GSAvatarEntitlements = null
 
 var stage: Stage = Stage.NEW
 
 ## Why admission stopped, when [member stage] is [constant Stage.REFUSED].
-var refusal: DotError = null
+var refusal: GSError = null
 
 ## Whether the player still has to go through first-time setup.
 ##
 ## [b]The one thing the platform flow branches on.[/b] Signed in but no avatar means
-## the editor opens before they spawn; see [DotPlatform.needs_onboarding].
+## the editor opens before they spawn; see [GSPlatform.needs_onboarding].
 var needs_onboarding: bool = false
 
 ## Set when the profile came back as a session-only stand-in because the store could
@@ -76,8 +76,8 @@ var admitted_at: int = 0
 var data: Dictionary = {}
 
 
-static func for_identity(p_identity: Object) -> DotPlatformPlayer:
-	var player := DotPlatformPlayer.new()
+static func for_identity(p_identity: Object) -> GSPlatformPlayer:
+	var player := GSPlatformPlayer.new()
 	player.identity = p_identity
 	player.stage = Stage.AUTHENTICATED if p_identity != null else Stage.NEW
 	player.admitted_at = int(Time.get_unix_time_from_system())
@@ -125,7 +125,7 @@ func was_refused() -> bool:
 	return stage == Stage.REFUSED
 
 
-func refuse(error: DotError) -> void:
+func refuse(error: GSError) -> void:
 	stage = Stage.REFUSED
 	refusal = error
 
@@ -161,6 +161,6 @@ func describe() -> Dictionary:
 
 
 func _to_string() -> String:
-	return "DotPlatformPlayer(%s '%s' %s)" % [
+	return "GSPlatformPlayer(%s '%s' %s)" % [
 		key() if key() != "" else "?", display_name(), stage_name()
 	]

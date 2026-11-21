@@ -1,6 +1,6 @@
 # GameSpice Platform
 
-Joins GameSpice Auth, GameSpice User and GameSpice User Avatar into one admission flow and binds it to a GameSpice Server; `DotPlatformIdentity` is the identity layer every game builds on. Its examples are the only place the family's addons run together.
+Joins GameSpice Auth, GameSpice User and GameSpice User Avatar into one admission flow and binds it to a GameSpice Server; `GSPlatformIdentity` is the identity layer every game builds on. Its examples are the only place the family's addons run together.
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first, then [PLATFORM.md](../../PLATFORM.md), the design this implements. This file is only what is specific to dot-platform.
 
@@ -25,13 +25,13 @@ done
 
 | Path | What |
 | --- | --- |
-| `addons/dot_platform/dot_platform.gd` | `DotPlatformHub`: the uid to scoped-key translation, admission |
-| `addons/dot_platform/dot_platform_player.gd` | `DotPlatformPlayer`: one admitted player; `account_uid()` |
-| `addons/dot_platform/dot_platform_module.gd` | `DotPlatformModule`: the GameSpice Server module; holds the PROFILE stage while admission runs, the late path, the three server events |
-| `addons/dot_platform/dot_platform_identity.gd` | `DotPlatformIdentity`: the identity layer a game subclasses or returns from GameSpice Game's `_make_identity()` |
-| `addons/dot_platform/dot_platform_users.gd` | `DotPlatformUsers`: GameSpice User's manager, telling the profile store which keys the site issued |
-| `addons/dot_platform/dot_platform_profile_store.gd` | `DotPlatformProfileStore`: site-issued keys to the site's profile store, every other key to this server's disk |
-| `addons/dot_platform/dot_platform_config.gd` | `DotPlatformConfig` |
+| `addons/dot_platform/dot_platform.gd` | `GSPlatformHub`: the uid to scoped-key translation, admission |
+| `addons/dot_platform/dot_platform_player.gd` | `GSPlatformPlayer`: one admitted player; `account_uid()` |
+| `addons/dot_platform/dot_platform_module.gd` | `GSPlatformModule`: the GameSpice Server module; holds the PROFILE stage while admission runs, the late path, the three server events |
+| `addons/dot_platform/dot_platform_identity.gd` | `GSPlatformIdentity`: the identity layer a game subclasses or returns from GameSpice Game's `_make_identity()` |
+| `addons/dot_platform/dot_platform_users.gd` | `GSPlatformUsers`: GameSpice User's manager, telling the profile store which keys the site issued |
+| `addons/dot_platform/dot_platform_profile_store.gd` | `GSPlatformProfileStore`: site-issued keys to the site's profile store, every other key to this server's disk |
+| `addons/dot_platform/dot_platform_config.gd` | `GSPlatformConfig` |
 | `addons/dot_platform/dot_platform_api.gd` | the API `LEVEL` and `OLDEST` a game checks |
 | `examples/seam_selftest.tscn` | every handoff, with real managers; one section per seam |
 | `examples/sandbox_server.tscn` | a real server and client in one process, on port 27077 |
@@ -44,19 +44,19 @@ The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything))
 
 ## Rules that bite
 
-- Only `DotPlatformHub` translates `identity.uid` to the scoped `user_key`; the avatar is keyed on the scoped key, never the uid. [design](docs/design.md#the-one-translation)
+- Only `GSPlatformHub` translates `identity.uid` to the scoped `user_key`; the avatar is keyed on the scoped key, never the uid. [design](docs/design.md#the-one-translation)
 - Never store, log or send `account_uid()`. [design](docs/design.md#the-one-translation)
-- Managers come from `DotRegistry`; every absent addon has a defined answer, covered by the "absent addons" section. [design](docs/design.md#everything-optional-stays-optional)
+- Managers come from `GSRegistry`; every absent addon has a defined answer, covered by the "absent addons" section. [design](docs/design.md#everything-optional-stays-optional)
 - The module holds GameSpice Server's PROFILE stage while admission runs, taking the hold synchronously inside `client_state_changed`; a required admission refuses there (`refuse_profile`), an optional one is let in after `admission_timeout_sec`. [design](docs/design.md#admission-gates-the-spawn)
 - Reach GameSpice Server's stage API through `has_method`/`call`, so the module still parses on a GameSpice Server older than the stage and admits late there. [design](docs/design.md#admission-gates-the-spawn)
 - Admission can still finish after the spawn (the late path); a game redraws on `player_admitted`, `player_renamed` and `player_avatar_changed`. GameSpice Platform sends nothing to a client. [design](docs/design.md#three-server-events-tell-the-game-when-to-redraw)
 - A suite of the hold needs a store that suspends; one that answers at once passes with the hold removed. [design](docs/design.md#admission-gates-the-spawn)
-- A game hands `DotPlatformIdentity` an `avatar_schema` and a `stock_avatar_fn`; `avatar_for` is never null while there is a schema. [design](docs/design.md#a-games-identity-layer-is-dotplatformidentity)
+- A game hands `GSPlatformIdentity` an `avatar_schema` and a `stock_avatar_fn`; `avatar_for` is never null while there is a schema. [design](docs/design.md#a-games-identity-layer-is-dotplatformidentity)
 - With the host's integration credential, only a key the site issued (the `scoped_key` claim) reaches the site's profile routes; a guest's or a locally derived key never does, or every read is a first-time player and every save an ERROR. A 401/403 falls back to the local store for the process. [design](docs/design.md#a-site-issued-players-profile-lives-on-the-site)
-- The seam suite's site checks run the real `DotHttp` against a loopback HTTP server (`MiniSite`); a faked client hid an orphan HTTP node for weeks. [history](docs/history.md#the-site-avatar-store-never-sent-a-request)
-- `DotPlatformModule` must keep returning when its hub is no longer valid. [design](docs/design.md#a-module-whose-hub-was-freed-admits-nobody)
+- The seam suite's site checks run the real `GSHttp` against a loopback HTTP server (`MiniSite`); a faked client hid an orphan HTTP node for weeks. [history](docs/history.md#the-site-avatar-store-never-sent-a-request)
+- `GSPlatformModule` must keep returning when its hub is no longer valid. [design](docs/design.md#a-module-whose-hub-was-freed-admits-nobody)
 - Two multiplayer APIs in one tree: RPC routing is the node path under each root, so the client link is named `Server`. [design](docs/design.md#two-multiplayerapi-instances-in-one-process)
-- Check a new `class_name` against every addon in the family (`DotPlatform` is GameSpice Core's). [history](docs/history.md#a-class-name-that-broke-dot-core)
+- Check a new `class_name` against every addon in the family (`GSPlatform` is GameSpice Core's). [history](docs/history.md#a-class-name-that-broke-dot-core)
 - Add a case to `seam_selftest` for any change to a handoff: it is the only test that runs more than one of these addons at once.
 - Raise `LEVEL` in `dot_platform_api.gd` for anything new a game could call. [dot_platform_api.gd](addons/dot_platform/dot_platform_api.gd)
 

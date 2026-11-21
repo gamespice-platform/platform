@@ -1,5 +1,5 @@
-class_name DotPlatformUsers
-extends DotUserManager
+class_name GSPlatformUsers
+extends GSUserManager
 
 ## GameSpice User's profile manager, telling the platform's profile store which keys the site
 ## issued.
@@ -8,29 +8,29 @@ extends DotUserManager
 ## about the IDENTITY (GameSpice Auth's scoped introspection puts the site's key in the
 ## `scoped_key` claim), and a store is only ever handed the key. [method key_for] is the
 ## one place both are in hand, and the manager calls it before it reads the store, so the
-## store knows where the key lives before its first request. See [DotPlatformProfileStore].
+## store knows where the key lives before its first request. See [GSPlatformProfileStore].
 
 ## The site's profile store, set before this enters the tree. Null keeps every profile on
 ## this server, which is what a manager with no integration credential does.
-var site_store: DotUserStore = null
+var site_store: GSUserStore = null
 
 
-func _build_store() -> DotResult:
-	var built: DotResult = super._build_store()
+func _build_store() -> GSResult:
+	var built: GSResult = super._build_store()
 
 	# An operator who configured the backbone backend themselves pointed every key at a
 	# site of their choosing; that is theirs, and it is not routed.
 	if not built.ok or site_store == null or config.backend == "backbone":
 		return built
 
-	return DotResult.success(DotPlatformProfileStore.over(site_store, built.value))
+	return GSResult.success(GSPlatformProfileStore.over(site_store, built.value))
 
 
-func key_for(identity: Object) -> DotResult:
-	var keyed: DotResult = super.key_for(identity)
+func key_for(identity: Object) -> GSResult:
+	var keyed: GSResult = super.key_for(identity)
 
-	if keyed.ok and store is DotPlatformProfileStore and _site_issued(identity):
-		(store as DotPlatformProfileStore).note_issued(str(keyed.value))
+	if keyed.ok and store is GSPlatformProfileStore and _site_issued(identity):
+		(store as GSPlatformProfileStore).note_issued(str(keyed.value))
 
 	return keyed
 

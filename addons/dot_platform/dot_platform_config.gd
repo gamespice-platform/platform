@@ -1,8 +1,8 @@
 @tool
-class_name DotPlatformConfig
-extends DotConfig
+class_name GSPlatformConfig
+extends GSConfig
 
-## How admission behaves. Layered like every [DotConfig]: exported defaults, then a
+## How admission behaves. Layered like every [GSConfig]: exported defaults, then a
 ## JSON file, then [code]DOT_PLATFORM_*[/code] environment variables, then
 ## [code]--platform-*[/code] arguments.
 
@@ -50,7 +50,7 @@ extends DotConfig
 
 ## Consider a player onboarded once they have published any avatar.
 ##
-## The alternative is trusting [code]DotUserProfile.onboarded[/code] alone, which a
+## The alternative is trusting [code]GSUserProfile.onboarded[/code] alone, which a
 ## player can end up with set while having no avatar — for instance if the avatar
 ## store was wiped and the profile store was not.
 @export var onboarded_needs_avatar: bool = true
@@ -64,15 +64,15 @@ func cli_prefix() -> String:
 	return "--platform-"
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if require_avatar and admission_timeout_sec < 2.0:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"require_avatar needs a longer admission timeout.",
 			"a person is choosing a hairstyle, not waiting on a socket"
 		)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func describe_summary() -> String:

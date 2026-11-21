@@ -10,7 +10,7 @@ extends EditorPlugin
 const _ICON := "res://addons/dot_platform/icon_placeholder.svg"
 
 const _TYPES := [
-	["DotPlatformHub", "Node", "res://addons/dot_platform/dot_platform.gd"],
+	["GSPlatformHub", "Node", "res://addons/dot_platform/dot_platform.gd"],
 ]
 
 

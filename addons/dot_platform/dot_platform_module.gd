@@ -1,24 +1,24 @@
-class_name DotPlatformModule
-extends DotModule
+class_name GSPlatformModule
+extends GSModule
 
-## Binds a [DotPlatformHub] to a running GameSpice Server, as a module rather than a fork.
+## Binds a [GSPlatformHub] to a running GameSpice Server, as a module rather than a fork.
 ##
 ## [b]Why a module.[/b] GameSpice Server's extension points exist so a game never has to
 ## edit it, and a platform is exactly the kind of thing that would otherwise be
-## tempted to. Everything here goes through [code]DotModule[/code]'s own helpers, so
+## tempted to. Everything here goes through [code]GSModule[/code]'s own helpers, so
 ## unloading it removes every command, cvar and hook it added — the reason those
 ## helpers exist is that a module which registers a command and is then unloaded
 ## leaves the console calling into a freed object.
 ##
 ## [codeblock]
-## var module := DotPlatformModule.new()
+## var module := GSPlatformModule.new()
 ## module.platform = platform
 ## server.modules.load_module(module)
 ## [/codeblock]
 ##
 ## [b]Admission gates the spawn.[/b] GameSpice Server's signon has a PROFILE stage between
 ## authentication and content (GameSpice Server API level 7). The module holds every
-## authenticated player there while [method DotPlatformHub.admit] runs, so the player
+## authenticated player there while [method GSPlatformHub.admit] runs, so the player
 ## appears already wearing their profile name and avatar, and a refusal
 ## ([code]require_avatar[/code], [code]require_profile[/code]) is a refusal of somebody
 ## nobody saw join rather than a kick.
@@ -29,11 +29,11 @@ extends DotModule
 ## a game's suite drives when it calls the state handler by hand.
 
 # No CHANNEL constant: this module logs -- admission, refusal, onboarding -- through
-# DotModule.log_info/log_warn, which write on "mod.platform". A second name here was one
+# GSModule.log_info/log_warn, which write on "mod.platform". A second name here was one
 # nothing wrote to, so `log channel platform.module debug` turned up nothing at all.
 
 ## The platform this module wires in. Required.
-var platform: DotPlatformHub = null
+var platform: GSPlatformHub = null
 
 ## GameSpice Server session userid -> scoped platform key.
 ##
@@ -45,7 +45,7 @@ var _keys_by_userid: Dictionary = {}
 ## Admissions in flight, so a client whose state changes twice is not admitted twice.
 var _admitting: Dictionary = {}
 
-## The name this module holds the PROFILE stage under. See [method DotServer.hold_profile].
+## The name this module holds the PROFILE stage under. See [method GSServer.hold_profile].
 const HOLD := "platform"
 
 ## GameSpice Server session userid -> session, for every player this module is holding in the
@@ -70,20 +70,20 @@ func _module_author() -> String:
 	return "dot"
 
 
-func _module_load() -> DotResult:
+func _module_load() -> GSResult:
 	if platform == null:
-		platform = DotRegistry.get_service(DotPlatformHub.SERVICE) as DotPlatformHub
+		platform = GSRegistry.get_service(GSPlatformHub.SERVICE) as GSPlatformHub
 
 	if platform == null:
-		return DotResult.fail(
-			DotError.CODE_STATE,
-			"The platform module needs a DotPlatformHub.",
-			"assign module.platform, or add a DotPlatformHub that registers itself"
+		return GSResult.fail(
+			GSError.CODE_STATE,
+			"The platform module needs a GSPlatformHub.",
+			"assign module.platform, or add a GSPlatformHub that registers itself"
 		)
 
 	if server == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "The platform module needs a server."
+		return GSResult.fail(
+			GSError.CODE_STATE, "The platform module needs a server."
 		)
 
 	server.client_state_changed.connect(_on_client_state_changed)
@@ -126,7 +126,7 @@ func _module_load() -> DotResult:
 
 	log_info("platform module loaded", platform.describe())
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func _module_unload() -> void:
@@ -150,7 +150,7 @@ func _module_unload() -> void:
 
 # --- The join --------------------------------------------------------------
 
-func _on_client_state_changed(session: DotClientSession) -> void:
+func _on_client_state_changed(session: GSClientSession) -> void:
 	# An identity means GameSpice Server has finished authenticating. Every later state
 	# change also carries one, which is why the in-flight guard exists rather than
 	# matching on a specific state: a session announced past the PROFILE stage (an older
@@ -187,7 +187,7 @@ func _on_client_state_changed(session: DotClientSession) -> void:
 ## [b]By name, through [method Object.call].[/b] `server.hold_profile(...)` would not
 ## parse against a GameSpice Server older than the stage, and this addon would then fail to load
 ## on every server that has not been updated, rather than admitting late as it used to.
-func _hold(session: DotClientSession) -> bool:
+func _hold(session: GSClientSession) -> bool:
 	if server == null or not server.has_method("hold_profile"):
 		return false
 	if not bool(server.call("hold_profile", session, HOLD)):
@@ -209,7 +209,7 @@ func _hold(session: DotClientSession) -> bool:
 	return true
 
 
-func _on_admission_budget(session: DotClientSession, budget: float) -> void:
+func _on_admission_budget(session: GSClientSession, budget: float) -> void:
 	if _holding.get(session.userid) != session:
 		return
 	log_warn("admission is slow; letting the player in before it finishes", {
@@ -225,7 +225,7 @@ func _required() -> bool:
 
 ## Ends this module's hold, if it still has one. The server sends the player on once
 ## nobody else holds them.
-func _release(session: DotClientSession) -> void:
+func _release(session: GSClientSession) -> void:
 	if _holding.get(session.userid) != session:
 		return
 	_holding.erase(session.userid)
@@ -235,12 +235,12 @@ func _release(session: DotClientSession) -> void:
 
 ## Runs admission for one session.
 ##
-## Not awaited by the caller: [signal DotServer.client_state_changed] is emitted from
+## Not awaited by the caller: [signal GSServer.client_state_changed] is emitted from
 ## inside the server's own signon path, and suspending there would leave the server
 ## mid-transition while a store is queried. [param gated] says the session is held in
 ## the PROFILE stage, so whatever happens here, it ends by releasing or refusing it.
-func _admit(session: DotClientSession, gated: bool) -> void:
-	var admitted: DotResult = await platform.admit(session.identity)
+func _admit(session: GSClientSession, gated: bool) -> void:
+	var admitted: GSResult = await platform.admit(session.identity)
 
 	_admitting.erase(session.userid)
 
@@ -250,7 +250,7 @@ func _admit(session: DotClientSession, gated: bool) -> void:
 	if not session.is_active():
 		_holding.erase(session.userid)
 		if admitted.ok:
-			platform.release((admitted.value as DotPlatformPlayer).key())
+			platform.release((admitted.value as GSPlatformPlayer).key())
 		return
 
 	if not admitted.ok:
@@ -260,7 +260,7 @@ func _admit(session: DotClientSession, gated: bool) -> void:
 
 		# Still held: refused before they appear, with the platform's sentence. Past the
 		# stage (late admission, or the hold was let go): the only answer left is a kick.
-		# This called `kick_session`, which DotServer has never had, so every late refusal
+		# This called `kick_session`, which GSServer has never had, so every late refusal
 		# was a script error and the player stayed in.
 		_holding.erase(session.userid)
 		if server != null:
@@ -273,7 +273,7 @@ func _admit(session: DotClientSession, gated: bool) -> void:
 
 		return
 
-	var player: DotPlatformPlayer = admitted.value
+	var player: GSPlatformPlayer = admitted.value
 
 	if player.key() != "":
 		_keys_by_userid[session.userid] = player.key()
@@ -314,7 +314,7 @@ func gates_spawn() -> bool:
 	return server != null and server.has_method("hold_profile")
 
 
-func _on_client_disconnected(session: DotClientSession, _reason: String) -> void:
+func _on_client_disconnected(session: GSClientSession, _reason: String) -> void:
 	var key: String = _keys_by_userid.get(session.userid, "")
 
 	_admitting.erase(session.userid)
@@ -330,13 +330,13 @@ func _on_client_disconnected(session: DotClientSession, _reason: String) -> void
 # --- Lookups ---------------------------------------------------------------
 
 ## The platform state for a GameSpice Server session, or null.
-func player_for(session: DotClientSession) -> DotPlatformPlayer:
+func player_for(session: GSClientSession) -> GSPlatformPlayer:
 	if session == null:
 		return null
 
 	var carried: Variant = session.data.get("platform")
 
-	return carried if carried is DotPlatformPlayer else null
+	return carried if carried is GSPlatformPlayer else null
 
 
 func key_for_userid(userid: int) -> String:
@@ -345,12 +345,12 @@ func key_for_userid(userid: int) -> String:
 
 # --- Console ---------------------------------------------------------------
 
-func _cmd_status(ctx: DotCmdContext) -> void:
+func _cmd_status(ctx: GSCmdContext) -> void:
 	for line in platform.describe_lines():
 		ctx.reply(line)
 
 
-func _cmd_name(ctx: DotCmdContext) -> void:
+func _cmd_name(ctx: GSCmdContext) -> void:
 	if ctx.args.size() < 2:
 		ctx.reply("usage: platform_name <userid> <name>")
 		return
@@ -363,7 +363,7 @@ func _cmd_name(ctx: DotCmdContext) -> void:
 		return
 
 	var requested := " ".join(ctx.args.slice(1))
-	var renamed: DotResult = await platform.set_display_name(key, requested)
+	var renamed: GSResult = await platform.set_display_name(key, requested)
 
 	if not renamed.ok:
 		ctx.reply("Refused: %s" % renamed.error.message)
@@ -388,7 +388,7 @@ func _cmd_name(ctx: DotCmdContext) -> void:
 ## Finds the session wearing this player and tells the server. A player with no
 ## session — one whose avatar changed while they were between servers — is nobody's
 ## business here.
-func _on_avatar_changed(player: DotPlatformPlayer) -> void:
+func _on_avatar_changed(player: GSPlatformPlayer) -> void:
 	if server == null or server.events == null or platform == null:
 		return
 	if not platform.config.broadcast_avatar_changes:

@@ -12,11 +12,11 @@ Requires [GameSpice Core](https://github.com/gamespice-platform/core) and [GameS
 ## Use
 
 ```gdscript
-var hub := DotPlatformHub.new()
+var hub := GSPlatformHub.new()
 add_child(hub)
 
 var admitted := await hub.admit(identity)      # identity from dot-auth
-var player: DotPlatformPlayer = admitted.value
+var player: GSPlatformPlayer = admitted.value
 
 player.key()            # scoped id, what everything else uses
 player.display_name()   # from the profile, falling back to the identity
@@ -29,7 +29,7 @@ On a GameSpice Server, load the module and it does this for every connection:
 server.modules.load_module("res://addons/dot_platform/dot_platform_module.gd")
 ```
 
-It finds the hub through `DotRegistry`, admits each authenticated client, stores the result in `session.data["platform"]`, applies the profile's name, and cleans up when the client leaves. It adds the console commands `platform_status` and `platform_name`.
+It finds the hub through `GSRegistry`, admits each authenticated client, stores the result in `session.data["platform"]`, applies the profile's name, and cleans up when the client leaves. It adds the console commands `platform_status` and `platform_name`.
 
 When the server has a site integration credential, a signed-in member's avatar and profile are read from and kept on the site, so they follow the member to every server using that credential. Guests and local accounts keep their profile on the server's disk.
 
@@ -41,7 +41,7 @@ identity.uid          "backbone:acc-1"     global; a server must never see this
    -> avatar filed under the SAME scoped key
 ```
 
-Keying data on the global account id would hand every server operator a global identifier for every player. `DotPlatformHub` is the only place that translation happens.
+Keying data on the global account id would hand every server operator a global identifier for every player. `GSPlatformHub` is the only place that translation happens.
 
 ## What happens when addons are missing
 

@@ -14,7 +14,7 @@ const SECTIONS := 9
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -79,16 +79,16 @@ func _test_wardrobe() -> void:
 	await hub.setup()
 
 	# Entitlements come from the game, resolved once at admission.
-	hub.entitlement_source = func(_identity: Object) -> DotAvatarEntitlements:
-		return DotAvatarEntitlements.of([&"hair_paid"])
+	hub.entitlement_source = func(_identity: Object) -> GSAvatarEntitlements:
+		return GSAvatarEntitlements.of([&"hair_paid"])
 
-	var authenticated: DotResult = await _authenticate("acc-8", "Radia", SERVER_A)
-	var admitted: DotResult = await hub.admit(authenticated.value)
+	var authenticated: GSResult = await _authenticate("acc-8", "Radia", SERVER_A)
+	var admitted: GSResult = await hub.admit(authenticated.value)
 
 	if not _check(admitted.ok, "a player with entitlements is admitted"):
 		return
 
-	var player: DotPlatformPlayer = admitted.value
+	var player: GSPlatformPlayer = admitted.value
 
 	_check(
 		player.entitlements != null and player.entitlements.holds(&"hair_paid"),
@@ -98,7 +98,7 @@ func _test_wardrobe() -> void:
 	var wanted := _schema.default_avatar()
 	wanted.set_part(&"hair", &"hair_paid")
 
-	var changed: DotResult = await hub.set_avatar(player.key(), wanted)
+	var changed: GSResult = await hub.set_avatar(player.key(), wanted)
 
 	_check(changed.ok, "they can wear something they own", str(changed.error))
 	_check(
@@ -114,25 +114,25 @@ func _test_wardrobe() -> void:
 	var forbidden := _schema.default_avatar()
 	forbidden.set_part(&"hair", &"hair_paid")
 
-	var stranger: DotResult = await hub.admit(
+	var stranger: GSResult = await hub.admit(
 		(await _authenticate("acc-9", "Evelyn", SERVER_A)).value
 	)
 
 	# Reset the source so this player genuinely owns nothing.
 	hub.entitlement_source = Callable()
-	var poor: DotResult = await hub.admit(
+	var poor: GSResult = await hub.admit(
 		(await _authenticate("acc-10", "Annie", SERVER_A)).value
 	)
-	var poor_player: DotPlatformPlayer = poor.value
+	var poor_player: GSPlatformPlayer = poor.value
 
-	var refused: DotResult = await hub.set_avatar(poor_player.key(), forbidden)
+	var refused: GSResult = await hub.set_avatar(poor_player.key(), forbidden)
 
 	_check(
 		not refused.ok,
 		"and cannot wear something they do not"
 	)
 	_check(
-		refused.code() == DotError.CODE_FORBIDDEN,
+		refused.code() == GSError.CODE_FORBIDDEN,
 		"with a code the caller can branch on",
 		refused.code()
 	)
@@ -142,31 +142,31 @@ func _test_wardrobe() -> void:
 
 ## Reconnects keep the wardrobe, and a lost entitlement conforms rather than refuses.
 func _wardrobe_reconnect(
-	hub: DotPlatformHub, users: DotUserManager, avatars: DotAvatarManager,
-	player: DotPlatformPlayer, authenticated: DotResult, wanted: DotAvatar
+	hub: GSPlatformHub, users: GSUserManager, avatars: GSAvatarManager,
+	player: GSPlatformPlayer, authenticated: GSResult, wanted: GSAvatar
 ) -> void:
 	# The source is restored first: the player still owns the item, and leaving it
 	# cleared would test the wrong thing.
-	hub.entitlement_source = func(_identity: Object) -> DotAvatarEntitlements:
-		return DotAvatarEntitlements.of([&"hair_paid"])
+	hub.entitlement_source = func(_identity: Object) -> GSAvatarEntitlements:
+		return GSAvatarEntitlements.of([&"hair_paid"])
 
 	hub.release(player.key())
 	avatars.clear_cache()
 	users.clear_cache()
 
-	var returning: DotResult = await hub.admit(authenticated.value)
+	var returning: GSResult = await hub.admit(authenticated.value)
 
 	_check(returning.ok, "the player reconnects")
 	_check(
 		returning.ok
-			and (returning.value as DotPlatformPlayer).avatar.digest() == wanted.digest(),
+			and (returning.value as GSPlatformPlayer).avatar.digest() == wanted.digest(),
 		"wearing what they chose last time",
 		"%s vs %s" % [
-			(returning.value as DotPlatformPlayer).avatar.digest(), wanted.digest()
+			(returning.value as GSPlatformPlayer).avatar.digest(), wanted.digest()
 		] if returning.ok else "?"
 	)
 	_check(
-		returning.ok and not (returning.value as DotPlatformPlayer).needs_onboarding,
+		returning.ok and not (returning.value as GSPlatformPlayer).needs_onboarding,
 		"and is not sent back through first-time setup"
 	)
 
@@ -177,18 +177,18 @@ func _wardrobe_reconnect(
 	avatars.clear_cache()
 	users.clear_cache()
 
-	var repossessed: DotResult = await hub.admit(authenticated.value)
+	var repossessed: GSResult = await hub.admit(authenticated.value)
 
 	_check(repossessed.ok, "a player who lost the item still connects")
 
 	if repossessed.ok:
-		var stripped: DotPlatformPlayer = repossessed.value
+		var stripped: GSPlatformPlayer = repossessed.value
 		_check(
 			not stripped.avatar.has_slot(&"hair"),
 			"with the item removed rather than the whole avatar refused"
 		)
 		_check(
-			_schema.validate(stripped.avatar, DotAvatarEntitlements.none()).ok,
+			_schema.validate(stripped.avatar, GSAvatarEntitlements.none()).ok,
 			"and what they are left wearing is valid"
 		)
 
@@ -196,11 +196,11 @@ func _wardrobe_reconnect(
 	users.queue_free()
 	avatars.queue_free()
 	await get_tree().process_frame
-	DotRegistry.clear()
+	GSRegistry.clear()
 	_done()
 
 
-## [DotPlatformIdentity]: the avatar fallback order (platform, stock, schema default) and
+## [GSPlatformIdentity]: the avatar fallback order (platform, stock, schema default) and
 ## that the chain it builds is the one the hub finds through the registry.
 func _test_game_identity() -> void:
 	_section("the shared identity layer")
@@ -209,14 +209,14 @@ func _test_game_identity() -> void:
 	stock.set_part(&"hair", &"hair_free")
 	var asked: Array[StringName] = []
 
-	var identity := DotPlatformIdentity.new()
+	var identity := GSPlatformIdentity.new()
 	identity.avatar_schema = _schema
-	identity.stock_avatar_fn = func(key: StringName) -> DotAvatar:
+	identity.stock_avatar_fn = func(key: StringName) -> GSAvatar:
 		asked.append(key)
 		return stock
 	add_child(identity)
 
-	var ready: DotResult = await identity.setup()
+	var ready: GSResult = await identity.setup()
 
 	if not _check(ready.ok, "it builds the whole chain", str(ready.error)):
 		identity.queue_free()
@@ -245,11 +245,11 @@ func _test_game_identity() -> void:
 		str(asked)
 	)
 
-	var authenticated: DotResult = await _authenticate("acc-11", "Hedy", SERVER_A)
-	var admitted: DotResult = await identity.platform.admit(authenticated.value)
+	var authenticated: GSResult = await _authenticate("acc-11", "Hedy", SERVER_A)
+	var admitted: GSResult = await identity.platform.admit(authenticated.value)
 
 	if _check(admitted.ok, "a player is admitted through it", str(admitted.error)):
-		var player: DotPlatformPlayer = admitted.value
+		var player: GSPlatformPlayer = admitted.value
 		_check(
 			identity.avatar_for(player.key()) == player.avatar and player.avatar != null,
 			"and is drawn in what the platform resolved for them, not the stock one"
@@ -271,7 +271,7 @@ func _test_game_identity() -> void:
 
 	identity.queue_free()
 	await get_tree().process_frame
-	DotRegistry.clear()
+	GSRegistry.clear()
 
 	await _identity_variants()
 	_done()
@@ -280,9 +280,9 @@ func _test_game_identity() -> void:
 ## A game with no avatars, and a host whose avatars come from the site.
 func _identity_variants() -> void:
 	# No manager, and null is the honest answer.
-	var bare := DotPlatformIdentity.new()
+	var bare := GSPlatformIdentity.new()
 	add_child(bare)
-	var bare_ready: DotResult = await bare.setup()
+	var bare_ready: GSResult = await bare.setup()
 	_check(
 		bare_ready.ok and bare.avatars == null and bare.avatar_for("u1") == null,
 		"no schema builds no avatar manager, and nobody has an avatar",
@@ -290,26 +290,26 @@ func _identity_variants() -> void:
 	)
 	bare.queue_free()
 	await get_tree().process_frame
-	DotRegistry.clear()
+	GSRegistry.clear()
 
 	# With an integration credential avatars come from the SITE, not a local file. A plain
 	# object with a config stands in for GameSpice Auth's client; the registry lookup is duck-typed.
-	var credential := DotAuthConfig.new()
+	var credential := GSAuthConfig.new()
 	credential.backbone_url = "https://site.example"
 	credential.integration_token = "tmci_test"
 	var fake_client := FakeBackboneHolder.new()
 	fake_client.config = credential
-	DotRegistry.register(&"dot_backbone_client", fake_client)
+	GSRegistry.register(&"dot_backbone_client", fake_client)
 
-	var sited := DotPlatformIdentity.new()
+	var sited := GSPlatformIdentity.new()
 	sited.avatar_schema = _schema
 	var translated_from: Array = []
-	sited.avatar_translate_fn = func(foreign: DotAvatar) -> DotAvatar:
+	sited.avatar_translate_fn = func(foreign: GSAvatar) -> GSAvatar:
 		translated_from.append(foreign.schema_id)
 		return _schema.default_avatar()
 	add_child(sited)
 	await sited.setup()
-	var site_store := sited.avatars.store as DotAvatarStoreBackbone if sited.avatars != null else null
+	var site_store := sited.avatars.store as GSAvatarStoreBackbone if sited.avatars != null else null
 	_check(
 		site_store != null and site_store.base_url == "https://site.example/api/integration/v1"
 			and site_store.read_only,
@@ -321,20 +321,20 @@ func _identity_variants() -> void:
 		site_store != null and site_store.http != null and site_store.http.is_inside_tree(),
 		"and the site store's HTTP client is in the tree, so a read reaches the network"
 	)
-	var foreign := DotAvatar.make(&"builtin")
+	var foreign := GSAvatar.make(&"builtin")
 	var as_ours: Variant = sited.avatars.translate_fn.call(foreign) if sited.avatars != null else null
 	_check(
-		as_ours is DotAvatar and translated_from == [&"builtin"],
+		as_ours is GSAvatar and translated_from == [&"builtin"],
 		"and a site avatar reaches the game's own translation"
 	)
 	# An enrolled server already has the host's client: the identity must use it, not build a token-less second one.
-	var reporting := DotPlatformIdentity.new()
+	var reporting := GSPlatformIdentity.new()
 	reporting.report_to_backbone = true
 	add_child(reporting)
-	var reported: DotResult = await reporting._build_backbone()
+	var reported: GSResult = await reporting._build_backbone()
 	_check(
 		reported.ok and reporting.backbone == null
-			and DotRegistry.get_service(&"dot_backbone_client") == fake_client,
+			and GSRegistry.get_service(&"dot_backbone_client") == fake_client,
 		"with the host's backbone client registered, the identity builds none of its own and still succeeds",
 		str(reported.error)
 	)
@@ -346,13 +346,13 @@ func _identity_variants() -> void:
 	)
 	sited.queue_free()
 	await get_tree().process_frame
-	DotRegistry.clear()
+	GSRegistry.clear()
 
 
 func _test_site_profiles() -> void:
 	_section("profiles on the site")
 
-	# A real HTTP server on loopback with the real DotHttp in front: nothing is faked
+	# A real HTTP server on loopback with the real GSHttp in front: nothing is faked
 	# between the store and the socket.
 	var site := MiniSite.new()
 	add_child(site)
@@ -361,22 +361,22 @@ func _test_site_profiles() -> void:
 		site.queue_free()
 		return
 
-	var credential := DotAuthConfig.new()
+	var credential := GSAuthConfig.new()
 	credential.backbone_url = "http://127.0.0.1:%d" % site.port
 	credential.integration_token = "tmci_seam"
 	var holder := FakeBackboneHolder.new()
 	holder.config = credential
-	DotRegistry.register(&"dot_backbone_client", holder)
+	GSRegistry.register(&"dot_backbone_client", holder)
 
-	var server_a := DotPlatformIdentity.new()
+	var server_a := GSPlatformIdentity.new()
 	server_a.avatar_schema = _schema
 	add_child(server_a)
 	await server_a.setup()
 
-	var routed := server_a.users.store as DotPlatformProfileStore if server_a.users != null else null
-	var site_store := routed.site as DotUserStoreBackbone if routed != null else null
+	var routed := server_a.users.store as GSPlatformProfileStore if server_a.users != null else null
+	var site_store := routed.site as GSUserStoreBackbone if routed != null else null
 	_check(
-		site_store != null and routed.local is DotUserStoreLocal
+		site_store != null and routed.local is GSUserStoreLocal
 			and site_store.base_url == "http://127.0.0.1:%d/api/integration/v1" % site.port,
 		"with the host's credential, profiles route between the site and this server's disk",
 		str(server_a.users.store) if server_a.users != null else "no manager"
@@ -388,10 +388,10 @@ func _test_site_profiles() -> void:
 
 	# A member the site issued a key for: what GameSpice Auth's scoped introspection builds.
 	var site_key := "SeamSiteKey0000000000a"
-	var member: DotAuthIdentity = DotAuthIdentity.from_scoped_user(
+	var member: GSAuthIdentity = GSAuthIdentity.from_scoped_user(
 		{"key": site_key, "name": "Grace"}
 	).value
-	var admitted: DotResult = await server_a.platform.admit(member)
+	var admitted: GSResult = await server_a.platform.admit(member)
 	var asked := site.requests_for(site_key)
 	_check(
 		admitted.ok and asked.size() == 1 and asked[0]["method"] == "GET"
@@ -400,8 +400,8 @@ func _test_site_profiles() -> void:
 		str(asked)
 	)
 
-	var player: DotPlatformPlayer = admitted.value if admitted.ok else null
-	var profile: DotUserProfile = player.profile if player != null else null
+	var player: GSPlatformPlayer = admitted.value if admitted.ok else null
+	var profile: GSUserProfile = player.profile if player != null else null
 	_check(
 		profile != null and profile.user_key == site_key and not player.degraded,
 		"a 404 there is a first-time player with a real profile, not a degraded one"
@@ -423,15 +423,15 @@ func _test_site_profiles() -> void:
 	await _site_without_credential(holder)
 
 	site.queue_free()
-	DotPaths.remove_tree("user://profiles")
+	GSPaths.remove_tree("user://profiles")
 	_done()
 
 
 ## A key this server derived itself never reaches the site's profile routes.
-func _site_local_keys(site: MiniSite, server_a: DotPlatformIdentity, routed: DotPlatformProfileStore) -> void:
-	var local_player: DotResult = await _authenticate("acc-site-1", "Linus", SERVER_A)
-	var local_admit: DotResult = await server_a.platform.admit(local_player.value)
-	var local_key: String = (local_admit.value as DotPlatformPlayer).key() if local_admit.ok else ""
+func _site_local_keys(site: MiniSite, server_a: GSPlatformIdentity, routed: GSPlatformProfileStore) -> void:
+	var local_player: GSResult = await _authenticate("acc-site-1", "Linus", SERVER_A)
+	var local_admit: GSResult = await server_a.platform.admit(local_player.value)
+	var local_key: String = (local_admit.value as GSPlatformPlayer).key() if local_admit.ok else ""
 	server_a.platform.release(local_key)
 	await get_tree().create_timer(0.3).timeout
 	_check(
@@ -452,20 +452,20 @@ func _site_local_keys(site: MiniSite, server_a: DotPlatformIdentity, routed: Dot
 
 ## Another server follows the profile; a credential without scopes falls back to disk.
 func _site_other_servers(
-	site: MiniSite, server_a: DotPlatformIdentity, member: DotAuthIdentity, site_key: String
+	site: MiniSite, server_a: GSPlatformIdentity, member: GSAuthIdentity, site_key: String
 ) -> void:
 	server_a.queue_free()
 	await get_tree().process_frame
-	DotRegistry.unregister(&"dot_user_manager")
-	DotRegistry.unregister(&"dot_avatar_manager")
-	DotRegistry.unregister(&"dot_platform")
+	GSRegistry.unregister(&"dot_user_manager")
+	GSRegistry.unregister(&"dot_avatar_manager")
+	GSRegistry.unregister(&"dot_platform")
 
-	var server_b := DotPlatformIdentity.new()
+	var server_b := GSPlatformIdentity.new()
 	server_b.avatar_schema = _schema
 	add_child(server_b)
 	await server_b.setup()
-	var again: DotResult = await server_b.platform.admit(member)
-	var followed: DotUserProfile = (again.value as DotPlatformPlayer).profile if again.ok else null
+	var again: GSResult = await server_b.platform.admit(member)
+	var followed: GSUserProfile = (again.value as GSPlatformPlayer).profile if again.ok else null
 	_check(
 		followed != null and followed.preferences.get("crosshair") == "dot",
 		"on another server, the same member arrives with the profile they left",
@@ -473,19 +473,19 @@ func _site_other_servers(
 	)
 	server_b.queue_free()
 	await get_tree().process_frame
-	DotRegistry.unregister(&"dot_user_manager")
-	DotRegistry.unregister(&"dot_avatar_manager")
-	DotRegistry.unregister(&"dot_platform")
+	GSRegistry.unregister(&"dot_user_manager")
+	GSRegistry.unregister(&"dot_avatar_manager")
+	GSRegistry.unregister(&"dot_platform")
 
 	# The site answers 403: the server keeps profiles itself rather than degrading members.
 	site.refuse_with = 403
-	var refused := DotPlatformIdentity.new()
+	var refused := GSPlatformIdentity.new()
 	refused.avatar_schema = _schema
 	add_child(refused)
 	await refused.setup()
-	var turned: DotResult = await refused.platform.admit(member)
-	var turned_player: DotPlatformPlayer = turned.value if turned.ok else null
-	var refused_store := refused.users.store as DotPlatformProfileStore
+	var turned: GSResult = await refused.platform.admit(member)
+	var turned_player: GSPlatformPlayer = turned.value if turned.ok else null
+	var refused_store := refused.users.store as GSPlatformProfileStore
 	_check(
 		turned_player != null and not turned_player.degraded and refused_store != null
 			and refused_store.site_refused,
@@ -502,36 +502,36 @@ func _site_other_servers(
 	)
 	refused.queue_free()
 	await get_tree().process_frame
-	DotRegistry.clear()
+	GSRegistry.clear()
 
 
 
 ## No credential is a LAN server; a host can also turn site profiles off.
 func _site_without_credential(holder: Object) -> void:
-	var lan := DotPlatformIdentity.new()
+	var lan := GSPlatformIdentity.new()
 	add_child(lan)
 	await lan.setup()
 	_check(
-		lan.users != null and lan.users.store is DotUserStoreLocal,
+		lan.users != null and lan.users.store is GSUserStoreLocal,
 		"with no credential, profiles are this server's own"
 	)
 	lan.queue_free()
 	await get_tree().process_frame
-	DotRegistry.clear()
+	GSRegistry.clear()
 
 	# And a host that turned it off keeps them local with the credential present.
-	DotRegistry.register(&"dot_backbone_client", holder)
-	var off := DotPlatformIdentity.new()
+	GSRegistry.register(&"dot_backbone_client", holder)
+	var off := GSPlatformIdentity.new()
 	off.use_backbone_profiles = false
 	add_child(off)
 	await off.setup()
 	_check(
-		off.users != null and off.users.store is DotUserStoreLocal,
+		off.users != null and off.users.store is GSUserStoreLocal,
 		"use_backbone_profiles off keeps them local with a credential present"
 	)
 	off.queue_free()
 	await get_tree().process_frame
-	DotRegistry.clear()
+	GSRegistry.clear()
 
 
 ## Waits up to two seconds for [param ready] to hold, a frame at a time.
@@ -658,7 +658,7 @@ class MiniSite extends Node:
 		return out
 
 
-## Stands in for GameSpice Auth's DotBackboneClient in the registry: what the identity layer
+## Stands in for GameSpice Auth's GSBackboneClient in the registry: what the identity layer
 ## reads is its config, and only that.
 class FakeBackboneHolder extends RefCounted:
-	var config: DotAuthConfig = null
+	var config: GSAuthConfig = null

@@ -1,5 +1,5 @@
-class_name DotPlatformProfileStore
-extends DotUserStore
+class_name GSPlatformProfileStore
+extends GSUserStore
 
 ## Profiles of players the site issued a key for live on the site; everybody else's stay
 ## on this server.
@@ -12,7 +12,7 @@ extends DotUserStore
 ## GameSpice User derived from this server's own secret — has a key the site never minted and
 ## answers [code]404[/code] for: every read would look like a first-time player and every
 ## save on leave would fail and log an ERROR. So the site store sees only keys the site
-## issued ([method note_issued], called by [DotPlatformUsers.key_for]) and the local store
+## issued ([method note_issued], called by [GSPlatformUsers.key_for]) and the local store
 ## sees the rest, exactly as it did before the site held profiles.
 ##
 ## [b]A credential the site refuses falls back for good.[/b] A server enrolled before its
@@ -20,16 +20,16 @@ extends DotUserStore
 ## That is a configuration, not an outage, so it is said once, and every key goes to the
 ## local store for the rest of the process: the behaviour the server had before, rather
 ## than a session-only profile and a WARN for every player who joins. Any other failure
-## (the site unreachable, a timeout) is passed through, and [DotUserManager] degrades that
+## (the site unreachable, a timeout) is passed through, and [GSUserManager] degrades that
 ## one player to a session-only profile that is never written over the real one.
 
 const ROUTER_CHANNEL := "platform.profiles"
 
 ## The site's store, over the server's integration credential.
-var site: DotUserStore = null
+var site: GSUserStore = null
 
 ## Where every key the site did not issue lives. Required.
-var local: DotUserStore = null
+var local: GSUserStore = null
 
 ## True once the site refused this server's credential; see the class note.
 var site_refused: bool = false
@@ -45,7 +45,7 @@ var local_requests: int = 0
 
 ## Routes [param site_store] and [param local_store]. Null [param site_store] routes
 ## everything locally.
-static func over(site_store: DotUserStore, local_store: DotUserStore) -> DotUserStore:
+static func over(site_store: GSUserStore, local_store: GSUserStore) -> GSUserStore:
 	# `new()`, not this class's own name: a script naming itself in an expression can cut
 	# Godot 4.7.2's exit teardown short (docs/gdscript-hazards.md).
 	var s := new()
@@ -56,8 +56,8 @@ static func over(site_store: DotUserStore, local_store: DotUserStore) -> DotUser
 
 ## Marks [param user_key] as one the site issued, so its profile is read and written there.
 ##
-## Called with the key the manager resolved, before the read: [DotPlatformUsers] does it
-## from [method DotUserManager.key_for], which is where the claim is in hand.
+## Called with the key the manager resolved, before the read: [GSPlatformUsers] does it
+## from [method GSUserManager.key_for], which is where the claim is in hand.
 func note_issued(user_key: String) -> void:
 	_issued[user_key] = true
 
@@ -67,7 +67,7 @@ func is_issued(user_key: String) -> bool:
 
 
 ## The store [param user_key] belongs to.
-func store_for(user_key: String) -> DotUserStore:
+func store_for(user_key: String) -> GSUserStore:
 	if site != null and not site_refused and _issued.has(user_key):
 		return site
 
@@ -75,35 +75,35 @@ func store_for(user_key: String) -> DotUserStore:
 
 
 func _store_name() -> String:
-	return "DotPlatformProfileStore"
+	return "GSPlatformProfileStore"
 
 
 func _writable() -> bool:
 	return local != null and local.is_writable()
 
 
-func _open() -> DotResult:
+func _open() -> GSResult:
 	if local == null:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "The platform profile store needs a local store."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "The platform profile store needs a local store."
 		)
 
-	var opened: DotResult = await local.open()
+	var opened: GSResult = await local.open()
 
 	if not opened.ok:
 		return opened
 
 	if site != null:
-		var reached: DotResult = await site.open()
+		var reached: GSResult = await site.open()
 
 		if not reached.ok:
 			# Not fatal: the site store is reopened on its first use, and a player whose
 			# read then fails is degraded to a session-only profile by the manager.
-			DotLog.warn(ROUTER_CHANNEL, "the site's profile store did not open", {
+			GSLog.warn(ROUTER_CHANNEL, "the site's profile store did not open", {
 				"error": str(reached.error)
 			})
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func _close() -> void:
@@ -119,9 +119,9 @@ func _close() -> void:
 # stamped it; going through the inner public method again would do all of that twice and,
 # on a failed write, log the ERROR twice — once per store — for one lost save.
 
-func _fetch(user_key: String) -> DotResult:
-	var target: DotUserStore = await _ready_store(user_key)
-	var res: DotResult = await target._fetch(user_key)
+func _fetch(user_key: String) -> GSResult:
+	var target: GSUserStore = await _ready_store(user_key)
+	var res: GSResult = await target._fetch(user_key)
 
 	if target == site and _refused(res):
 		return await _fetch(user_key)
@@ -129,15 +129,15 @@ func _fetch(user_key: String) -> DotResult:
 	return res
 
 
-func _store(profile: DotUserProfile) -> DotResult:
-	var target: DotUserStore = await _ready_store(profile.user_key)
+func _store(profile: GSUserProfile) -> GSResult:
+	var target: GSUserStore = await _ready_store(profile.user_key)
 
 	if not target.is_writable():
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN, "This profile store is read-only.", target._store_name()
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN, "This profile store is read-only.", target._store_name()
 		)
 
-	var res: DotResult = await target._store(profile)
+	var res: GSResult = await target._store(profile)
 
 	if target == site and _refused(res):
 		return await _store(profile)
@@ -145,9 +145,9 @@ func _store(profile: DotUserProfile) -> DotResult:
 	return res
 
 
-func _remove(user_key: String) -> DotResult:
-	var target: DotUserStore = await _ready_store(user_key)
-	var res: DotResult = await target._remove(user_key)
+func _remove(user_key: String) -> GSResult:
+	var target: GSUserStore = await _ready_store(user_key)
+	var res: GSResult = await target._remove(user_key)
 
 	if target == site and _refused(res):
 		return await _remove(user_key)
@@ -157,7 +157,7 @@ func _remove(user_key: String) -> DotResult:
 
 ## [method store_for], opened. A site store that will not open is passed on as it is: its
 ## request then fails, and the caller degrades that one player.
-func _ready_store(user_key: String) -> DotUserStore:
+func _ready_store(user_key: String) -> GSUserStore:
 	var target := store_for(user_key)
 
 	if target == site:
@@ -173,7 +173,7 @@ func _ready_store(user_key: String) -> DotUserStore:
 
 ## Whether [param res] is the site refusing this server's credential (401 or 403), and if
 ## so, stops routing to it. The caller then retries locally.
-func _refused(res: DotResult) -> bool:
+func _refused(res: GSResult) -> bool:
 	if res.ok or res.error == null:
 		return false
 
@@ -181,7 +181,7 @@ func _refused(res: DotResult) -> bool:
 		return false
 
 	site_refused = true
-	DotLog.warn(
+	GSLog.warn(
 		ROUTER_CHANNEL,
 		"the site refused this server's credential for profiles; they stay on this server",
 		{

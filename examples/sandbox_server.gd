@@ -9,8 +9,8 @@ extends Node
 ## Exits non-zero on failure.
 ##
 ## [b]What this proves that the seam test cannot.[/b] The seam test calls
-## [method DotPlatformHub.admit] directly. This boots a [DotServer], loads
-## [DotPlatformModule] into it, connects a [DotClientLink] over loopback, and lets
+## [method GSPlatformHub.admit] directly. This boots a [GSServer], loads
+## [GSPlatformModule] into it, connects a [GSClientLink] over loopback, and lets
 ## the whole signon run: transport, challenge, credentials, authentication, content,
 ## load, spawn — with the platform resolving a profile and an avatar along the way.
 ## Nothing is called by hand.
@@ -51,23 +51,23 @@ var _failures := PackedStringArray()
 ## site). [b]A store that answers at once makes the suite blind to the hold:[/b] admission
 ## then finishes inside GameSpice Server's own PROFILE announcement, before anything could have
 ## moved the player on, so a module that held nothing would pass every check here.
-class SlowAvatarStore extends DotAvatarStoreMemory:
-	func _fetch(user_key: String) -> DotResult:
+class SlowAvatarStore extends GSAvatarStoreMemory:
+	func _fetch(user_key: String) -> GSResult:
 		var tree := Engine.get_main_loop() as SceneTree
 		for i in 3:
 			await tree.process_frame
 		return super._fetch(user_key)
 
 
-var _server: DotServer = null
-var _link: DotClientLink = null
-var _hub: DotPlatformHub = null
-var _users: DotUserManager = null
-var _avatars: DotAvatarManager = null
+var _server: GSServer = null
+var _link: GSClientLink = null
+var _hub: GSPlatformHub = null
+var _users: GSUserManager = null
+var _avatars: GSAvatarManager = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -105,9 +105,9 @@ func _run() -> void:
 
 
 func _cleanup() -> void:
-	DotPaths.remove_tree(PROFILE_DIR)
-	DotPaths.remove_tree(AVATAR_DIR)
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(PROFILE_DIR)
+	GSPaths.remove_tree(AVATAR_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	if FileAccess.file_exists(SCOPE_KEY):
 		DirAccess.open("user://").remove(SCOPE_KEY.get_file())
 
@@ -161,9 +161,9 @@ func _build() -> bool:
 		return false
 
 	# Named "Server" on purpose: an RPC is addressed by node path relative to the
-	# MultiplayerAPI root, so the client node must sit where DotServer sits or every RPC
+	# MultiplayerAPI root, so the client node must sit where GSServer sits or every RPC
 	# fails with "Node not found: Server".
-	_link = DotClientLink.new()
+	_link = GSClientLink.new()
 	_link.name = "Server"
 	_link.player_name = "Sandbox Visitor"
 	client_side.add_child(_link)
@@ -174,13 +174,13 @@ func _build() -> bool:
 
 ## Platform services, shared by both halves; they are not networked.
 func _build_services() -> bool:
-	_users = DotUserManager.new()
+	_users = GSUserManager.new()
 	_users.register_service = true
 	_users.load_layered_config = false
 	_users.config_file = ""
 	_users.server_id = "sandbox"
 
-	var user_config := DotUserConfig.new()
+	var user_config := GSUserConfig.new()
 	user_config.backend = "local"
 	user_config.directory = PROFILE_DIR
 	user_config.scope = "server:sandbox"
@@ -189,35 +189,35 @@ func _build_services() -> bool:
 	_users.config = user_config
 	add_child(_users)
 
-	var users_ready: DotResult = await _users.setup()
+	var users_ready: GSResult = await _users.setup()
 	if not _check(users_ready.ok, "profiles are up", str(users_ready.error)):
 		return false
 
-	_avatars = DotAvatarManager.new()
+	_avatars = GSAvatarManager.new()
 	_avatars.schema = _build_schema()
 	_avatars.register_service = true
 	_avatars.load_layered_config = false
 	_avatars.config_file = ""
 
-	var avatar_config := DotAvatarConfig.new()
+	var avatar_config := GSAvatarConfig.new()
 	avatar_config.backend = "local"
 	avatar_config.directory = AVATAR_DIR
 	_avatars.config = avatar_config
 	add_child(_avatars)
 
-	var avatars_ready: DotResult = await _avatars.setup()
+	var avatars_ready: GSResult = await _avatars.setup()
 	if not _check(avatars_ready.ok, "avatars are up", str(avatars_ready.error)):
 		return false
 	_avatars.store = SlowAvatarStore.new()
 
-	_hub = DotPlatformHub.new()
+	_hub = GSPlatformHub.new()
 	_hub.register_service = true
 	_hub.load_layered_config = false
 	_hub.config_file = ""
-	_hub.config = DotPlatformConfig.new()
+	_hub.config = GSPlatformConfig.new()
 	add_child(_hub)
 
-	var hub_ready: DotResult = await _hub.setup()
+	var hub_ready: GSResult = await _hub.setup()
 	if not _check(hub_ready.ok, "the platform is up", str(hub_ready.error)):
 		return false
 
@@ -226,18 +226,18 @@ func _build_services() -> bool:
 
 ## Guest authentication (no backbone), the server and the platform module.
 func _build_server(server_side: Node) -> bool:
-	var auth_config := DotAuthConfig.new()
-	auth_config.strategy = DotAuthConfig.Strategy.ANONYMOUS
+	var auth_config := GSAuthConfig.new()
+	auth_config.strategy = GSAuthConfig.Strategy.ANONYMOUS
 	auth_config.allow_guests = true
 
-	var auth := DotAuthServer.new()
+	var auth := GSAuthServer.new()
 	auth.name = "Auth"
 	auth.config = auth_config
 	auth.config_file = ""
 	auth.register_service = true
 	server_side.add_child(auth)
 
-	var config := DotServerConfig.new()
+	var config := GSServerConfig.new()
 	config.hostname = "sandbox"
 	config.port = PORT
 	config.bind_address = "127.0.0.1"
@@ -249,20 +249,20 @@ func _build_server(server_side: Node) -> bool:
 	config.startup_config = ""
 	config.autoexec_config = ""
 
-	_server = DotServer.new()
+	_server = GSServer.new()
 	_server.name = "Server"
 	_server.config = config
 	_server.config_file = ""
 	_server.auto_boot = false
 	server_side.add_child(_server)
 
-	var booted: DotResult = await _server.boot()
+	var booted: GSResult = await _server.boot()
 
 	if not _check(booted.ok, "the server boots and listens", str(booted.error)):
 		return false
 
-	# The module finds the hub through DotRegistry, so a path rather than an instance is fine.
-	var loaded: DotResult = await _server.modules.load_module(
+	# The module finds the hub through GSRegistry, so a path rather than an instance is fine.
+	var loaded: GSResult = await _server.modules.load_module(
 		"res://addons/dot_platform/dot_platform_module.gd"
 	)
 
@@ -277,17 +277,17 @@ func _build_server(server_side: Node) -> bool:
 	return true
 
 
-func _build_schema() -> DotAvatarSchema:
-	var schema := DotAvatarSchema.new()
+func _build_schema() -> GSAvatarSchema:
+	var schema := GSAvatarSchema.new()
 	schema.id = &"sandbox"
 
-	var body := DotAvatarSlot.make(&"body", true, &"body_default")
-	var hair := DotAvatarSlot.make(&"hair")
+	var body := GSAvatarSlot.make(&"body", true, &"body_default")
+	var hair := GSAvatarSlot.make(&"hair")
 	schema.slots = [body, hair]
 
-	var body_default := DotAvatarPart.make(&"body_default", &"body", true)
+	var body_default := GSAvatarPart.make(&"body_default", &"body", true)
 	body_default.colour_channels = 1
-	var hair_free := DotAvatarPart.make(&"hair_free", &"hair", true)
+	var hair_free := GSAvatarPart.make(&"hair_free", &"hair", true)
 	hair_free.colour_channels = 1
 
 	schema.parts = [body_default, hair_free]
@@ -308,24 +308,24 @@ func _test_join() -> void:
 	var order: Array[String] = []
 	var admitted_in: Array[String] = []
 	var at_spawn: Array = []
-	var module := _server.modules.get_module("platform") as DotPlatformModule
+	var module := _server.modules.get_module("platform") as GSPlatformModule
 
-	_server.events.hook_post("player_admitted", func(event: DotEvent) -> void:
+	_server.events.hook_post("player_admitted", func(event: GSEvent) -> void:
 		order.append("admitted")
 		var at := _server.session_by_userid(event.get_int("userid"))
 		admitted_in.append(at.state_name() if at != null else "gone")
 		admitted_events.append(event.get_int("userid")))
-	var on_spawn := func(session: DotClientSession) -> void:
+	var on_spawn := func(session: GSClientSession) -> void:
 		order.append("spawned")
 		at_spawn.append([module.player_for(session) != null, session.display_name])
 	_server.client_spawned.connect(on_spawn)
-	_server.events.hook_post("player_renamed", func(event: DotEvent) -> void:
+	_server.events.hook_post("player_renamed", func(event: GSEvent) -> void:
 		renamed_events.append(str(event.data.get("name", ""))))
 
 	_link.spawned.connect(func() -> void: spawned[0] = true)
 	_link.disconnected.connect(func(reason: String) -> void: refused[0] = reason)
 
-	var connecting: DotResult = await _link.connect_to_server("127.0.0.1:%d" % PORT)
+	var connecting: GSResult = await _link.connect_to_server("127.0.0.1:%d" % PORT)
 
 	if not _check(connecting.ok, "the client starts connecting", str(connecting.error)):
 		return
@@ -364,7 +364,7 @@ func _test_join() -> void:
 	if not _check(_hub.count() == 1, "the platform admitted them"):
 		return
 
-	var player: DotPlatformPlayer = _hub.players()[0]
+	var player: GSPlatformPlayer = _hub.players()[0]
 	_join_player_checks(player)
 	await _join_module_view(module, player, admitted_events, renamed_events)
 
@@ -373,9 +373,9 @@ func _test_join() -> void:
 
 func _join_status_and_leave() -> void:
 	# The console command, which is how an operator sees any of this.
-	var status: DotResult = _server.console.execute(
+	var status: GSResult = _server.console.execute(
 		"platform_status",
-		DotCmdContext.console("platform_status", PackedStringArray())
+		GSCmdContext.console("platform_status", PackedStringArray())
 	)
 	_check(status.ok, "platform_status runs", str(status.error) if not status.ok else "")
 
@@ -400,7 +400,7 @@ func _join_status_and_leave() -> void:
 
 
 func _join_gate_checks(
-	module: DotPlatformModule, order: Array[String], admitted_in: Array[String], at_spawn: Array
+	module: GSPlatformModule, order: Array[String], admitted_in: Array[String], at_spawn: Array
 ) -> void:
 	_check(module.gates_spawn(), "this server has the PROFILE stage, so admission gates the spawn")
 	# Asked as the platform announced it, not via client_state_changed: a hub that answers
@@ -423,7 +423,7 @@ func _join_gate_checks(
 	)
 
 
-func _join_player_checks(player: DotPlatformPlayer) -> void:
+func _join_player_checks(player: GSPlatformPlayer) -> void:
 	_check(player.is_ready(), "and they reached READY", player.stage_name())
 	_check(player.is_guest(), "as a guest, since this server has no accounts")
 	_check(player.profile != null, "with a profile")
@@ -433,7 +433,7 @@ func _join_player_checks(player: DotPlatformPlayer) -> void:
 		"whose required slots are filled, so they are visible"
 	)
 	_check(
-		DotUserScope.is_well_formed(player.key()),
+		GSUserScope.is_well_formed(player.key()),
 		"keyed by a scoped id",
 		player.key()
 	)
@@ -446,7 +446,7 @@ func _join_player_checks(player: DotPlatformPlayer) -> void:
 
 ## The module's own view of the same player.
 func _join_module_view(
-	module: DotPlatformModule, player: DotPlatformPlayer,
+	module: GSPlatformModule, player: GSPlatformPlayer,
 	admitted_events: Array[int], renamed_events: Array[String]
 ) -> void:
 	var sessions := _server.sessions()
@@ -472,8 +472,8 @@ func _join_module_view(
 
 		# The handler awaits the profile store, so the command returns before it lands.
 		var line := "platform_name %d Grace" % sessions[0].userid
-		var renamed: DotResult = _server.console.execute(
-			line, DotCmdContext.console("platform_name", PackedStringArray())
+		var renamed: GSResult = _server.console.execute(
+			line, GSCmdContext.console("platform_name", PackedStringArray())
 		)
 		var rename_deadline := Time.get_ticks_msec() + 5000
 
@@ -501,7 +501,7 @@ func _test_require_avatar_refuses_unseen() -> void:
 	add_child(client_side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), client_side.get_path())
 
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Newcomer"
 	client_side.add_child(link)
@@ -509,13 +509,13 @@ func _test_require_avatar_refuses_unseen() -> void:
 	var spawned := [false]
 	var refused := [""]
 	var seated: Array[String] = []
-	var on_spawn := func(session: DotClientSession) -> void:
+	var on_spawn := func(session: GSClientSession) -> void:
 		seated.append(session.display_name)
 	_server.client_spawned.connect(on_spawn)
 	link.spawned.connect(func() -> void: spawned[0] = true)
 	link.disconnected.connect(func(reason: String) -> void: refused[0] = reason)
 
-	var connecting: DotResult = await link.connect_to_server("127.0.0.1:%d" % PORT)
+	var connecting: GSResult = await link.connect_to_server("127.0.0.1:%d" % PORT)
 	_check(connecting.ok, "a first-time player connects", str(connecting.error))
 
 	var deadline := Time.get_ticks_msec() + 10000
@@ -537,12 +537,12 @@ func _test_require_avatar_refuses_unseen() -> void:
 
 	# Past the stage the only refusal left is a kick: a session the module first hears of
 	# already in the game (a host that adopted it, an older server). That path called a
-	# DotServer method that never existed, so the player was left in with a script error.
-	var late := DotClientSession.new()
+	# GSServer method that never existed, so the player was left in with a script error.
+	var late := GSClientSession.new()
 	late.peer_id = 9191
 	late.display_name = "Late"
-	late.state = DotClientSession.State.SPAWNED
-	late.identity = DotAuthIdentity.guest("device-late", "Late")
+	late.state = GSClientSession.State.SPAWNED
+	late.identity = GSAuthIdentity.guest("device-late", "Late")
 	var _adopted := _server.adopt_session(late)
 	var kicked_deadline := Time.get_ticks_msec() + 5000
 	while late.is_active() and Time.get_ticks_msec() < kicked_deadline:
