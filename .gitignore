@@ -25,7 +25,7 @@ Thumbs.db
 /addons/gs_player
 
 # Linked addons (separate repositories, symlinked in for local development).
-/addons/dot_bot
-/addons/dot_bot_record
-/addons/dot_sim
+/addons/gs_bot
+/addons/gs_bot_record
+/addons/gs_sim
 /addons/godot-sqlite
