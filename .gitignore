@@ -23,3 +23,8 @@ export_presets.cfg
 Thumbs.db
 /addons/gs_player_controller
 /addons/gs_player
+
+# Sibling addons linked for local suites (absolute links must never be tracked; CI resolves them from addons.lock):
+/addons/gs_moderation
+/addons/gs_sql
+/addons/gs_voice
